@@ -1,0 +1,648 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@tailwind utilities;
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  font-family:
+    "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Oxygen", "Ubuntu", "Cantarell", sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+
+  color-scheme: light;
+  color: #171a26;
+  background-color: #ffffff;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --radius: 0.625rem;
+
+  /* Professional Color Palette — indigo brand + cool neutrals */
+  --white: #ffffff;
+  --light-gray: #f4f5fa;
+  --gray-100: #eceef5;
+  --gray-200: #dfe2ec;
+  --gray-300: #cdd1e0;
+  --gray-400: #a8aec4;
+  --gray-500: #7b8199;
+  --gray-600: #5a5f75;
+  --dark-gray: #2e3245;
+  --black: #171a26;
+
+  --dark-blue: #312e81;
+  --accent-blue: #4f46e5;
+  --vomit-blue: #6366f1;
+  --dark-purple: #2d1b4e;
+
+  /* Design System */
+  --background: var(--white);
+  --foreground: var(--black);
+  --card: var(--white);
+  --card-foreground: var(--black);
+
+  --popover: var(--white);
+  --popover-foreground: var(--dark-gray);
+  --primary: #4338ca;
+  --primary-foreground: var(--white);
+  --secondary: var(--light-gray);
+  --secondary-foreground: var(--dark-gray);
+
+  --muted: var(--gray-100);
+  --muted-foreground: var(--gray-500);
+
+  --accent: var(--accent-blue);
+  --accent-foreground: var(--white);
+
+  --destructive: #c53a3a;
+  --border: var(--gray-200);
+  --input: var(--white);
+  --ring: var(--accent-blue);
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --sidebar: var(--light-gray);
+  --sidebar-foreground: var(--dark-gray);
+  --sidebar-primary: var(--dark-blue);
+  --sidebar-primary-foreground: var(--white);
+  --sidebar-accent: var(--white);
+  --sidebar-accent-foreground: var(--dark-blue);
+  --sidebar-border: var(--gray-200);
+  --sidebar-ring: var(--dark-blue);
+}
+
+@theme {
+  --color-white: #ffffff;
+  --color-light-gray: #f4f5fa;
+  --color-gray-100: #eceef5;
+  --color-gray-200: #dfe2ec;
+  --color-gray-300: #cdd1e0;
+  --color-gray-400: #a8aec4;
+  --color-gray-500: #7b8199;
+  --color-gray-600: #5a5f75;
+  --color-dark-gray: #2e3245;
+  --color-black: #171a26;
+  --color-dark-blue: #312e81;
+  --color-accent-blue: #4f46e5;
+  --color-dark-purple: #2d1b4e;
+  --color-vomit-blue: #6366f1;
+  /* Deep shell color behind the navbar and the content frame */
+  --color-chrome: #1e1b4b;
+}
+
+/*
+ * Brand themes — set by the comparison page via
+ * document.documentElement.dataset.brandTheme. They override both variable
+ * namespaces: --color-* feeds Tailwind utilities (bg-dark-blue, ...),
+ * the bare tokens feed the design system (--primary, --ring, --accent).
+ * Every other page keeps the default indigo theme above.
+ */
+:root[data-brand-theme="infinix"] {
+  --color-chrome: #000000;
+  --color-dark-blue: #141414;
+  --color-accent-blue: #000000;
+  --dark-blue: #141414;
+  --accent-blue: #000000;
+  --primary: #000000;
+}
+
+:root[data-brand-theme="itel"] {
+  --color-chrome: #8c0122;
+  --color-dark-blue: #c9082f;
+  --color-accent-blue: #ff073c;
+  --dark-blue: #c9082f;
+  --accent-blue: #ff073c;
+  --primary: #ff073c;
+}
+
+:root[data-brand-theme="tecno"] {
+  --color-chrome: #003a94;
+  --color-dark-blue: #0047b8;
+  --color-accent-blue: #0064fe;
+  --dark-blue: #0047b8;
+  --accent-blue: #0064fe;
+  --primary: #0064fe;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+.dark {
+  --background: #1a1a1a;
+  --foreground: #ffffff;
+  --card: #2a2a2a;
+  --card-foreground: #ffffff;
+  --popover: #2a2a2a;
+  --popover-foreground: #ffffff;
+  --primary: #e0e0e0;
+  --primary-foreground: #1a1a1a;
+  --secondary: #404040;
+  --secondary-foreground: #ffffff;
+  --muted: #404040;
+  --muted-foreground: #b0b0b0;
+  --accent: #404040;
+  --accent-foreground: #ffffff;
+  --destructive: #d65555;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #1a5490;
+  --chart-1: #1a5490;
+  --chart-2: #4a7ba7;
+  --chart-3: #808080;
+  --chart-4: #606060;
+  --chart-5: #b0b0b0;
+  --sidebar: #2a2a2a;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #4a7ba7;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #404040;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #1a5490;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  /* Smooth brand-theme switching: colors fade everywhere. Utilities with
+     their own transition classes (transform, width, ...) still win. */
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-duration: 300ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  .card {
+    @apply bg-white rounded-lg p-4 shadow-lg border border-gray-200;
+  }
+  .button {
+    @apply bg-dark-blue text-white hover:bg-accent-blue rounded transition-colors;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background-color: #ffffff;
+  overflow-y: hidden;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0px 1000px #f4f5fa inset !important;
+  -webkit-text-fill-color: #171a26 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #eceef5;
+  border-radius: 100px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #a8aec4;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7b8199;
+}
+
+.dot-animation {
+  animation: dotSequence 2.5s infinite;
+}
+
+.dot-animation.delay-1 {
+  animation-delay: 0.5s;
+}
+
+.dot-animation.delay-2 {
+  animation-delay: 1s;
+}
+.dot-animation.delay-3 {
+  animation-delay: 1.5s;
+}
+
+.dot-animation.delay-4 {
+  animation-delay: 2s;
+}
+
+.custom-spin {
+  animation: customSpin 5s linear infinite;
+}
+
+.logo-hover-spin {
+  animation: customSpin 5s linear infinite;
+  animation-play-state: paused;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.logo-hover-spin:hover {
+  animation-play-state: running;
+}
+
+.animate-pingCustom {
+  animation: pingCustom 2s linear infinite;
+}
+
+.delay-1 {
+  animation-delay: 0.5s;
+}
+
+.delay-2 {
+  animation-delay: 1s;
+}
+.delay-3 {
+  animation-delay: 1.5s;
+}
+
+.delay-4 {
+  animation-delay: 2s;
+}
+
+@keyframes pingCustom {
+  0% {
+    height: 0%;
+    width: 0%;
+  }
+  100% {
+    opacity: 0%;
+  }
+}
+
+@keyframes customSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dotSequence {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  30%,
+  80% {
+    opacity: 0.3;
+  }
+}
+
+/* Fade in/out for backdrop */
+.backdrop-enter {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+.backdrop-enter-active {
+  opacity: 1;
+}
+.backdrop-exit {
+  opacity: 1;
+  transition: opacity 0.3s ease-out;
+}
+.backdrop-exit-active {
+  opacity: 0;
+}
+
+/* Slide up/down for modal panel */
+.modal-enter {
+  transform: translateY(100%);
+  transition: transform 0.3s ease-out;
+}
+.modal-enter-active {
+  transform: translateY(0);
+}
+.modal-exit {
+  transform: translateY(0);
+  transition: transform 0.3s ease-out;
+}
+.modal-exit-active {
+  transform: translateY(100%);
+}
+
+.tooltip {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 300ms ease,
+    transform 600ms ease,
+    visibility 300ms ease;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.tooltip.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-top {
+  bottom: 100%;
+  left: 50%;
+  margin-bottom: 8px;
+}
+.tooltip-top.show {
+  transform: translate(0%, 0%);
+}
+
+.tooltip-right {
+  top: 50%;
+  left: 100%;
+  margin-left: 8px;
+}
+.tooltip-right.show {
+  transform: translate(0%, -50%);
+}
+
+.tooltip-bottom {
+  top: 100%;
+  left: 50%;
+  margin-top: 8px;
+}
+.tooltip-bottom.show {
+  transform: translate(-50%, 0%);
+}
+
+.tooltip-left {
+  top: 50%;
+  /* right: 100%; */
+  margin-right: 8px;
+}
+.tooltip-left.show {
+  transform: translate(-100%, -50%);
+}
+
+.button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 16px;
+  background: #111;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+/* Animated glowing border */
+.button::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--angle),
+    #00f5ff,
+    #6a5cff,
+    #ff00d4,
+    #ff7a00,
+    #00f5ff
+  );
+  animation: spin 4s linear infinite;
+  z-index: -2;
+}
+
+/* Inner background */
+.button::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #1d1d1d, #111, #222, #111);
+  z-index: -1;
+}
+
+/* Shine sweep */
+.button span {
+  position: relative;
+  z-index: 2;
+}
+
+.button span::before {
+  content: "";
+  position: absolute;
+  top: -120%;
+  left: -60%;
+  width: 40%;
+  height: 320%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  transform: rotate(25deg);
+  transition: left 0.8s ease;
+}
+
+.button:hover span::before {
+  left: 130%;
+}
+
+/* Hover */
+.button:hover {
+  transform: translateY(-4px) scale(1.04);
+  box-shadow:
+    0 0 20px rgba(0, 245, 255, 0.35),
+    0 0 45px rgba(106, 92, 255, 0.25),
+    0 15px 35px rgba(0, 0, 0, 0.18);
+}
+
+/* Click */
+.button:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+/* Animated conic gradient */
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes spin {
+  from {
+    --angle: 0deg;
+  }
+  to {
+    --angle: 360deg;
+  }
+}
+
+.buuton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 16px;
+  background: #111;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+/* Animated glowing border */
+.buuton::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--angle),
+    #00f5ff,
+    #6a5cff,
+    #ff00d4,
+    #ff7a00,
+    #00f5ff
+  );
+  animation: spin 4s linear infinite;
+  z-index: -2;
+}
+
+/* Inner background */
+.buuton::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #1d1d1d, #111, #222, #111);
+  z-index: -1;
+}
+
+/* Shine sweep */
+.buuton span {
+  position: relative;
+  z-index: 2;
+}
+
+.buuton span::before {
+  content: "";
+  position: absolute;
+  top: -120%;
+  left: -60%;
+  width: 40%;
+  height: 320%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  transform: rotate(25deg);
+  transition: left 0.8s ease;
+}
+
+.buuton:hover span::before {
+  left: 130%;
+}
+
+/* Hover */
+.buuton:hover {
+  transform: translateY(-4px) scale(1.04);
+  box-shadow:
+    0 0 20px rgba(0, 245, 255, 0.35),
+    0 0 45px rgba(106, 92, 255, 0.25),
+    0 15px 35px rgba(0, 0, 0, 0.18);
+}
+
+/* Click */
+.buuton:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+/* Animated conic gradient */
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes spin {
+  from {
+    --angle: 0deg;
+  }
+  to {
+    --angle: 360deg;
+  }
+}
