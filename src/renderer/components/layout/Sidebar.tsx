@@ -87,7 +87,7 @@ export function Sidebar({
             >
               {/* Win11 NavigationView selection pill */}
               {selected && (
-                <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-accent" />
+                <span className="absolute left-0 top-1/2 h-4 w-0.75 -translate-y-1/2 rounded-full bg-accent" />
               )}
               <Icon
                 glyph={glyphs.bulletedList}
@@ -122,14 +122,16 @@ export function Sidebar({
             {
               label: "Rename",
               glyph: glyphs.rename,
-              onSelect: () => openDialog({ mode: "rename", playlist: menu.playlist }),
+              onSelect: () =>
+                openDialog({ mode: "rename", playlist: menu.playlist }),
             },
             { type: "separator" },
             {
               label: "Delete",
               glyph: glyphs.delete,
               danger: true,
-              onSelect: () => openDialog({ mode: "delete", playlist: menu.playlist }),
+              onSelect: () =>
+                openDialog({ mode: "delete", playlist: menu.playlist }),
             },
           ]}
         />
