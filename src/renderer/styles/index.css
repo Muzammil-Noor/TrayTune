@@ -4,9 +4,14 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Base app styles. Full Light/Dark/System theme tokens and Windows accent
- * support arrive with tasks 1.16–1.19 — until then this is the Win11 light look.
+ * Base app styles. Full Light/Dark/System theme tokens arrive with tasks
+ * 1.16–1.18 — until then this is the Win11 light look. The accent below is the
+ * fallback accent; task 1.19 wires up the real Windows accent color.
  */
+
+@theme {
+  --color-accent: #0067c0;
+}
 
 :root {
   font-family:
@@ -33,4 +38,86 @@ body {
   /* Native app feel: UI text is not selectable; re-enable per element where needed. */
   user-select: none;
   cursor: default;
+}
+
+@layer components {
+  .fluent-icon {
+    font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1;
+    display: inline-block;
+  }
+
+  /* Win11-style range slider (seek bar, volume). Fill percentage is driven by
+     the --slider-fill CSS variable set inline by the Slider component. */
+  .slider {
+    appearance: none;
+    height: 20px;
+    width: 100%;
+    background: transparent;
+    margin: 0;
+  }
+
+  .slider:focus-visible {
+    outline: 2px solid rgb(0 0 0 / 0.75);
+    outline-offset: 2px;
+    border-radius: 9999px;
+  }
+
+  .slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      var(--color-accent) var(--slider-fill, 0%),
+      rgb(0 0 0 / 0.22) var(--slider-fill, 0%)
+    );
+  }
+
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    margin-top: -6px;
+    height: 16px;
+    width: 16px;
+    border-radius: 9999px;
+    background: var(--color-accent);
+    border: 4px solid #ffffff;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.14);
+    transition: transform 120ms ease;
+  }
+
+  .slider:hover::-webkit-slider-thumb {
+    transform: scale(1.16);
+  }
+
+  .slider:active::-webkit-slider-thumb {
+    transform: scale(0.95);
+  }
+
+  .slider:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+}
+
+/* Win11-like overlay-style scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgb(0 0 0 / 0.25);
+  border-radius: 9999px;
+  border: 4px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(0 0 0 / 0.4);
 }
