@@ -1,24 +1,51 @@
 import { Sidebar } from "./components/layout/Sidebar";
+import { TrackList } from "./components/library/TrackList";
+import { Player } from "./components/player/Player";
+import { useMockPlayer } from "./hooks/use-mock-player";
 
 export default function App() {
+  const player = useMockPlayer();
+
   return (
     <div className="flex h-full">
-      <Sidebar />
+      <Sidebar
+        playlists={player.playlists}
+        selectedPlaylistId={player.selectedPlaylistId}
+        onSelect={player.selectPlaylist}
+        onAdd={player.addPlaylist}
+        onRename={player.renamePlaylist}
+        onDelete={player.deletePlaylist}
+      />
 
       {/* Content pane, Win11 NavigationView style: white surface with a rounded
           top-left corner sitting on the mica-toned window background. */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-l border-t border-black/8 bg-white">
-        {/* Track list area — built in task 1.9 */}
-        <section className="flex-1 overflow-y-auto p-6">
-          <p className="text-sm text-neutral-400">
-            Select a playlist to see its tracks.
-          </p>
-        </section>
-
-        {/* Player area — built in tasks 1.10–1.13 */}
-        <footer className="flex h-28 shrink-0 items-center justify-center border-t border-black/8 bg-[#fbfbfb]">
-          <p className="text-sm text-neutral-400">Nothing is playing.</p>
-        </footer>
+        <TrackList
+          playlistName={player.selectedPlaylist?.name}
+          tracks={player.playlistTracks}
+          currentTrackId={player.currentTrackId}
+          onPlay={player.playTrack}
+          onRemoveFromPlaylist={(trackId) => {
+            if (player.selectedPlaylist) {
+              player.removeTrackFromPlaylist(player.selectedPlaylist.id, trackId);
+            }
+          }}
+          onRemoveFromLibrary={player.removeTrackFromLibrary}
+        />
+        <Player
+          currentTrack={player.currentTrack}
+          isPlaying={player.isPlaying}
+          position={player.position}
+          shuffle={player.shuffle}
+          repeat={player.repeat}
+          canSkip={player.playlistTracks.length > 0}
+          onTogglePlay={player.togglePlay}
+          onPrevious={player.previous}
+          onNext={player.next}
+          onSeek={player.seek}
+          onToggleShuffle={player.toggleShuffle}
+          onCycleRepeat={player.cycleRepeat}
+        />
       </main>
     </div>
   );
