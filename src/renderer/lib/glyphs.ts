@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Glyph code points from the "Segoe Fluent Icons" system font (Windows 11),
  * with "Segoe MDL2 Assets" as the fallback - both ship with Windows.
  */
@@ -6,6 +6,7 @@ export const glyphs = {
   add: "\uE710",
   cancel: "\uE711",
   more: "\uE712",
+  settings: "\uE713",
   delete: "\uE74D",
   volume: "\uE767",
   play: "\uE768",
