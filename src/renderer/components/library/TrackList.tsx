@@ -33,13 +33,13 @@ export function TrackList({
         <h2 className="truncate text-xl font-semibold">
           {playlistName ?? "No playlist selected"}
         </h2>
-        <p className="pt-0.5 text-xs text-neutral-500">
+        <p className="pt-0.5 text-xs text-secondary">
           {tracks.length} {tracks.length === 1 ? "track" : "tracks"}
         </p>
       </header>
 
       {tracks.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 pb-10 text-neutral-400">
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 pb-10 text-tertiary">
           <Icon glyph={glyphs.musicNote} className="text-4xl" />
           <p className="text-sm">
             {playlistName
@@ -64,17 +64,17 @@ export function TrackList({
                   setMenu({ x: event.clientX, y: event.clientY, track });
                 }}
                 className={cn(
-                  "grid w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-neutral-900/75",
+                  "grid w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 text-left outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
                   isCurrent
                     ? "bg-accent/8"
-                    : "hover:bg-black/4 active:bg-black/8",
+                    : "hover:bg-subtle active:bg-subtle-strong",
                 )}
               >
                 <span className="flex justify-center">
                   {isCurrent ? (
                     <Icon glyph={glyphs.volume} className="text-sm text-accent" />
                   ) : (
-                    <span className="text-sm tabular-nums text-neutral-500">
+                    <span className="text-sm tabular-nums text-secondary">
                       {index + 1}
                     </span>
                   )}
@@ -83,16 +83,16 @@ export function TrackList({
                   <span
                     className={cn(
                       "block truncate text-sm",
-                      isCurrent ? "font-medium text-accent" : "text-neutral-900",
+                      isCurrent ? "font-medium text-accent" : "text-primary",
                     )}
                   >
                     {track.title}
                   </span>
-                  <span className="block truncate text-xs text-neutral-500">
+                  <span className="block truncate text-xs text-secondary">
                     {track.artist ?? "Unknown artist"}
                   </span>
                 </span>
-                <span className="text-sm tabular-nums text-neutral-500">
+                <span className="text-sm tabular-nums text-secondary">
                   {formatDuration(track.duration)}
                 </span>
               </button>

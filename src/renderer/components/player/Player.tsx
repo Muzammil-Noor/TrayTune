@@ -20,7 +20,8 @@ interface PlayerProps {
 }
 
 /** Bottom player bar composing TrackInfo, PlaybackControls, SeekBar and
- * PlaybackModeControls (tasks 1.10–1.13). */
+ * PlaybackModeControls (tasks 1.10–1.13). The middle column is fluid so the
+ * bar adapts to narrow windows (task 1.20). */
 export function Player({
   currentTrack,
   isPlaying,
@@ -36,10 +37,10 @@ export function Player({
   onCycleRepeat,
 }: PlayerProps) {
   return (
-    <footer className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-t border-black/8 bg-[#fbfbfb] px-4 py-3">
+    <footer className="grid shrink-0 grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] items-center gap-4 border-t border-stroke bg-surface-secondary px-4 py-3">
       <TrackInfo track={currentTrack} />
 
-      <div className="flex flex-col items-center gap-1.5">
+      <div className="flex w-full flex-col items-center gap-1.5 justify-self-center">
         <PlaybackControls
           isPlaying={isPlaying}
           canSkip={canSkip}

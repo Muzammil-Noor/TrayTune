@@ -11,19 +11,19 @@ interface TrackInfoProps {
 export function TrackInfo({ track }: TrackInfoProps) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <div className="flex size-12 shrink-0 items-center justify-center rounded-md bg-neutral-200">
-        <Icon glyph={glyphs.musicAlbum} className="text-lg text-neutral-500" />
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-md bg-subtle-strong">
+        <Icon glyph={glyphs.musicAlbum} className="text-lg text-tertiary" />
       </div>
       {track ? (
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{track.title}</p>
-          <p className="truncate text-xs text-neutral-500">
+          <p className="truncate text-xs text-secondary">
             {track.artist ?? "Unknown artist"}
             {track.album ? ` · ${track.album}` : ""}
           </p>
         </div>
       ) : (
-        <p className="truncate text-sm text-neutral-400">Nothing playing</p>
+        <p className="truncate text-sm text-tertiary">Nothing playing</p>
       )}
     </div>
   );

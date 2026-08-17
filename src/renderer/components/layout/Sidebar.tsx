@@ -16,6 +16,7 @@ interface SidebarProps {
   onAdd: (name: string) => void;
   onRename: (playlistId: PlaylistId, name: string) => void;
   onDelete: (playlistId: PlaylistId) => void;
+  onOpenSettings: () => void;
 }
 
 type MenuState = { x: number; y: number; playlist: Playlist } | null;
@@ -32,6 +33,7 @@ export function Sidebar({
   onAdd,
   onRename,
   onDelete,
+  onOpenSettings,
 }: SidebarProps) {
   const [menu, setMenu] = useState<MenuState>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -52,20 +54,18 @@ export function Sidebar({
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col">
+    <aside className="flex w-52 shrink-0 flex-col lg:w-64">
       <header className="px-5 pb-2 pt-5">
         <h1 className="text-base font-semibold">TrayTune</h1>
       </header>
 
-      <p className="px-5 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-neutral-500">
+      <p className="px-5 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-secondary">
         Playlists
       </p>
 
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-1">
         {playlists.length === 0 && (
-          <p className="px-3 py-2 text-sm text-neutral-400">
-            No playlists yet.
-          </p>
+          <p className="px-3 py-2 text-sm text-tertiary">No playlists yet.</p>
         )}
         {playlists.map((playlist) => {
           const selected = playlist.id === selectedPlaylistId;
@@ -79,10 +79,10 @@ export function Sidebar({
                 setMenu({ x: event.clientX, y: event.clientY, playlist });
               }}
               className={cn(
-                "relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-neutral-900/75",
+                "relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
                 selected
-                  ? "bg-black/5 font-medium"
-                  : "hover:bg-black/5 active:bg-black/10",
+                  ? "bg-subtle font-medium"
+                  : "hover:bg-subtle active:bg-subtle-strong",
               )}
             >
               {/* Win11 NavigationView selection pill */}
@@ -91,10 +91,10 @@ export function Sidebar({
               )}
               <Icon
                 glyph={glyphs.bulletedList}
-                className="text-sm text-neutral-600"
+                className="text-sm text-secondary"
               />
               <span className="min-w-0 flex-1 truncate">{playlist.name}</span>
-              <span className="text-xs tabular-nums text-neutral-500">
+              <span className="text-xs tabular-nums text-secondary">
                 {playlist.trackIds.length}
               </span>
             </button>
@@ -102,14 +102,23 @@ export function Sidebar({
         })}
       </nav>
 
-      <footer className="p-3">
+      <footer className="flex items-center gap-1 p-3">
         <Button
           variant="subtle"
-          className="w-full justify-start"
+          className="min-w-0 flex-1 justify-start"
           onClick={() => openDialog({ mode: "add" })}
         >
           <Icon glyph={glyphs.add} className="text-sm" />
-          Add Playlist
+          <span className="truncate">Add Playlist</span>
+        </Button>
+        <Button
+          variant="subtle"
+          size="icon"
+          title="Settings"
+          aria-label="Settings"
+          onClick={onOpenSettings}
+        >
+          <Icon glyph={glyphs.settings} />
         </Button>
       </footer>
 
@@ -185,7 +194,7 @@ export function Sidebar({
           </>
         }
       >
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-secondary">
           “{dialog?.mode === "delete" ? dialog.playlist.name : ""}” will be
           deleted permanently. Tracks stay in your library.
         </p>
