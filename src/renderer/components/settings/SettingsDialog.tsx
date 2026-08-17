@@ -1,12 +1,16 @@
 import type { ThemePreference } from "@/hooks/use-theme";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 
 interface SettingsDialogProps {
   open: boolean;
   themePreference: ThemePreference;
   /** True when the accent comes from Windows, false on the fallback accent. */
   usingWindowsAccent: boolean;
+  /** null while settings are loading/unavailable. */
+  closeToTray: boolean | null;
+  onCloseToTrayChange: (value: boolean) => void;
   onThemeChange: (preference: ThemePreference) => void;
   onClose: () => void;
 }
@@ -23,6 +27,8 @@ export function SettingsDialog({
   open,
   themePreference,
   usingWindowsAccent,
+  closeToTray,
+  onCloseToTrayChange,
   onThemeChange,
   onClose,
 }: SettingsDialogProps) {
@@ -60,6 +66,21 @@ export function SettingsDialog({
             {usingWindowsAccent
               ? "Using your Windows accent color"
               : "Using the default accent color"}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="pb-2 text-sm font-medium">Behavior</h3>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm text-secondary">
+              Keep running in the tray when the window is closed
+            </span>
+            <ToggleSwitch
+              checked={closeToTray ?? true}
+              disabled={closeToTray === null}
+              aria-label="Keep running in the tray when the window is closed"
+              onChange={onCloseToTrayChange}
+            />
           </div>
         </section>
       </div>

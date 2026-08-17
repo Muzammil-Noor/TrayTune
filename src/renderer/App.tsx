@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sidebar } from "./components/layout/Sidebar";
 import { TrackList } from "./components/library/TrackList";
 import { Player } from "./components/player/Player";
 import { SettingsDialog } from "./components/settings/SettingsDialog";
 import { useAccent } from "./hooks/use-accent";
+import { useAppSettings } from "./hooks/use-app-settings";
 import { useMockPlayer } from "./hooks/use-mock-player";
 import { useTheme } from "./hooks/use-theme";
 
@@ -11,7 +12,24 @@ export default function App() {
   const player = useMockPlayer();
   const theme = useTheme();
   const accent = useAccent();
+  const appSettings = useAppSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Tray menu (and later media keys) drive the player through main-process
+  // commands. The ref keeps the subscription stable across renders.
+  const playerRef = useRef(player);
+  useEffect(() => {
+    playerRef.current = player;
+  }, [player]);
+  useEffect(() => {
+    const unsubscribe = window.traytune?.player.onCommand((command) => {
+      const current = playerRef.current;
+      if (command === "play-pause") current.togglePlay();
+      else if (command === "previous") current.previous();
+      else if (command === "next") current.next();
+    });
+    return unsubscribe;
+  }, []);
 
   return (
     <div className="flex h-full">
@@ -60,6 +78,8 @@ export default function App() {
         open={settingsOpen}
         themePreference={theme.preference}
         usingWindowsAccent={accent !== null}
+        closeToTray={appSettings.settings?.closeToTray ?? null}
+        onCloseToTrayChange={(value) => appSettings.update({ closeToTray: value })}
         onThemeChange={theme.setPreference}
         onClose={() => setSettingsOpen(false)}
       />

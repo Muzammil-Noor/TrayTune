@@ -1,5 +1,9 @@
 import { app, BrowserWindow } from "electron";
+import { registerSettingsIpc } from "./ipc/settings";
 import { registerSystemIpc } from "./ipc/system";
+import { markQuitting } from "./lifecycle";
+import { loadSettings } from "./services/settings";
+import { createTray, destroyTray } from "./tray/tray";
 import { createMainWindow } from "./windows/main-window";
 
 // A tray app must never run twice; a second launch focuses the existing window.
@@ -20,11 +24,22 @@ if (!gotSingleInstanceLock) {
 
   app.whenReady().then(() => {
     app.setAppUserModelId("com.traytune.app");
+    loadSettings();
     registerSystemIpc();
-    createMainWindow();
+    registerSettingsIpc();
+    const window = createMainWindow();
+    createTray(window);
   });
 
-  // Phase 2 will keep the app alive in the tray instead.
+  app.on("before-quit", () => {
+    markQuitting();
+  });
+
+  app.on("will-quit", () => {
+    destroyTray();
+  });
+
+  // Fires only when the window really closes (closeToTray off or app quit).
   app.on("window-all-closed", () => {
     console.log("[main] window-all-closed — quitting");
     app.quit();
