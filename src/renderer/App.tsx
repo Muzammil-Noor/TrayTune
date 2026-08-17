@@ -1,10 +1,17 @@
+import { useState } from "react";
 import { Sidebar } from "./components/layout/Sidebar";
 import { TrackList } from "./components/library/TrackList";
 import { Player } from "./components/player/Player";
+import { SettingsDialog } from "./components/settings/SettingsDialog";
+import { useAccent } from "./hooks/use-accent";
 import { useMockPlayer } from "./hooks/use-mock-player";
+import { useTheme } from "./hooks/use-theme";
 
 export default function App() {
   const player = useMockPlayer();
+  const theme = useTheme();
+  const accent = useAccent();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <div className="flex h-full">
@@ -15,11 +22,12 @@ export default function App() {
         onAdd={player.addPlaylist}
         onRename={player.renamePlaylist}
         onDelete={player.deletePlaylist}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      {/* Content pane, Win11 NavigationView style: white surface with a rounded
-          top-left corner sitting on the mica-toned window background. */}
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-l border-t border-black/8 bg-white">
+      {/* Content pane, Win11 NavigationView style: elevated surface with a
+          rounded top-left corner sitting on the mica-toned window background. */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-l border-t border-stroke bg-surface">
         <TrackList
           playlistName={player.selectedPlaylist?.name}
           tracks={player.playlistTracks}
@@ -47,6 +55,14 @@ export default function App() {
           onCycleRepeat={player.cycleRepeat}
         />
       </main>
+
+      <SettingsDialog
+        open={settingsOpen}
+        themePreference={theme.preference}
+        usingWindowsAccent={accent !== null}
+        onThemeChange={theme.setPreference}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   );
 }
