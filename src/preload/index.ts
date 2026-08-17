@@ -1,8 +1,9 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { AppSettings, PlayerCommand } from "../shared/types";
 
 // Minimal typed surface for the renderer. Feature APIs (library.*, playlist.*,
-// player.*, settings.*, youtube.*) are added here phase by phase — never expose
-// ipcRenderer or Node APIs directly.
+// youtube.*, …) are added here phase by phase — never expose ipcRenderer or
+// Node APIs directly.
 const api = {
   platform: process.platform as string,
   system: {
@@ -13,6 +14,19 @@ const api = {
       ipcRenderer.on("system:accent-color-changed", listener);
       return () =>
         ipcRenderer.removeListener("system:accent-color-changed", listener);
+    },
+  },
+  settings: {
+    get: (): Promise<AppSettings> => ipcRenderer.invoke("settings:get"),
+    update: (patch: Partial<AppSettings>): Promise<AppSettings> =>
+      ipcRenderer.invoke("settings:update", patch),
+  },
+  player: {
+    onCommand: (callback: (command: PlayerCommand) => void): (() => void) => {
+      const listener = (_event: unknown, command: PlayerCommand) =>
+        callback(command);
+      ipcRenderer.on("player:command", listener);
+      return () => ipcRenderer.removeListener("player:command", listener);
     },
   },
 };

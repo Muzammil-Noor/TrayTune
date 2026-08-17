@@ -5,7 +5,7 @@
     "target": "es2023",
     "ignoreDeprecations": "6.0",
     "lib": ["ES2023"],
-    "types": ["node"],
+    "types": ["node", "electron-vite/node"],
     "skipLibCheck": true,
 
     /* Bundler mode — electron-vite bundles main/preload, tsc only typechecks */

@@ -26,3 +26,12 @@ export interface Playlist {
 }
 
 export type RepeatMode = "off" | "all" | "one";
+
+export interface AppSettings {
+  /** When true, the window's close button hides to the tray instead of quitting. */
+  closeToTray: boolean;
+}
+
+/** Playback actions the main process (tray menu, later media keys) can send
+ * to the player. */
+export type PlayerCommand = "play-pause" | "previous" | "next";

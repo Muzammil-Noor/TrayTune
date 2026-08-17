@@ -1,5 +1,7 @@
 import { BrowserWindow, nativeTheme, shell } from "electron";
 import { join } from "path";
+import { isQuitting } from "../lifecycle";
+import { getSettings } from "../services/settings";
 
 export function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -22,6 +24,15 @@ export function createMainWindow(): BrowserWindow {
 
   window.on("ready-to-show", () => {
     window.show();
+  });
+
+  // Close-to-tray (task 2.5): hide instead of closing unless the user turned
+  // it off or the app is actually quitting.
+  window.on("close", (event) => {
+    if (!isQuitting() && getSettings().closeToTray) {
+      event.preventDefault();
+      window.hide();
+    }
   });
 
   window.on("closed", () => {
