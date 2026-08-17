@@ -9,7 +9,7 @@ export function TextInput({
   return (
     <input
       className={cn(
-        "h-8 w-full cursor-text select-text rounded-md border border-black/10 border-b-neutral-400 bg-white px-3 text-sm text-neutral-900 outline-none transition-shadow placeholder:text-neutral-400 focus:shadow-[inset_0_-2px_0_0_var(--color-accent)]",
+        "h-8 w-full cursor-text select-text rounded-md border border-stroke-strong border-b-tertiary bg-control px-3 text-sm text-primary outline-none transition-shadow placeholder:text-tertiary focus:shadow-[inset_0_-2px_0_0_var(--accent)]",
         className,
       )}
       {...props}

@@ -57,20 +57,20 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
       <div
         ref={menuRef}
         role="menu"
-        className="animate-in fade-in zoom-in-95 fixed min-w-48 rounded-lg border border-black/10 bg-white py-1 shadow-lg duration-100"
+        className="animate-in fade-in zoom-in-95 fixed min-w-48 rounded-lg border border-stroke-strong bg-popup py-1 shadow-lg duration-100"
         style={{ left: position.x, top: position.y }}
       >
         {items.map((item, index) =>
           item.type === "separator" ? (
-            <div key={index} className="mx-2 my-1 h-px bg-black/10" />
+            <div key={index} className="mx-2 my-1 h-px bg-stroke-strong" />
           ) : (
             <button
               key={index}
               type="button"
               role="menuitem"
               className={cn(
-                "flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm outline-none transition-colors hover:bg-black/5 focus-visible:bg-black/5",
-                item.danger && "text-[#c42b1c]",
+                "flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm outline-none transition-colors hover:bg-subtle focus-visible:bg-subtle active:bg-subtle-strong",
+                item.danger && "text-danger",
               )}
               onClick={() => {
                 item.onSelect();
