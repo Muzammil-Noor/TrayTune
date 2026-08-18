@@ -1,7 +1,7 @@
 import type {
   AppSettings,
-  NowPlayingInfo,
-  PlayerCommand,
+  PlayerAction,
+  PlayerStateSnapshot,
 } from "../shared/types";
 
 export interface TrayTuneApi {
@@ -17,11 +17,19 @@ export interface TrayTuneApi {
     update(patch: Partial<AppSettings>): Promise<AppSettings>;
   };
   readonly player: {
-    /** Playback commands from the main process (tray menu, media keys later).
-     * Returns an unsubscribe function. */
-    onCommand(callback: (command: PlayerCommand) => void): () => void;
-    /** Reports the current track (or null) so the tray can display it. */
-    reportNowPlaying(info: NowPlayingInfo | null): void;
+    /** Main window: actions from the tray menu / flyout. Returns unsubscribe. */
+    onAction(callback: (action: PlayerAction) => void): () => void;
+    /** Flyout: send an action for the main window's player to apply. */
+    sendAction(action: PlayerAction): void;
+    /** Main window: report the full player state after every change. */
+    reportState(snapshot: PlayerStateSnapshot): void;
+    /** Flyout: receive player state snapshots. Returns unsubscribe. */
+    onState(callback: (snapshot: PlayerStateSnapshot) => void): () => void;
+  };
+  readonly flyout: {
+    hide(): void;
+    toggle(): void;
+    openMainWindow(): void;
   };
 }
 

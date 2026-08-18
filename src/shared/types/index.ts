@@ -32,13 +32,31 @@ export interface AppSettings {
   closeToTray: boolean;
 }
 
-/** Playback actions the main process (tray menu, later media keys) can send
- * to the player. */
-export type PlayerCommand = "play-pause" | "previous" | "next";
+/** Player actions that can originate outside the main window (tray menu,
+ * flyout, later media keys). The main window's player applies them. */
+export type PlayerAction =
+  | { type: "play-pause" }
+  | { type: "previous" }
+  | { type: "next" }
+  | { type: "toggle-shuffle" }
+  | { type: "cycle-repeat" }
+  | { type: "seek"; position: number }
+  | { type: "play-track"; trackId: TrackId }
+  | { type: "select-playlist"; playlistId: PlaylistId }
+  | { type: "remove-from-playlist"; trackId: TrackId }
+  | { type: "remove-from-library"; trackId: TrackId };
 
-/** What the renderer reports to the main process for the tray display. */
-export interface NowPlayingInfo {
-  title: string;
-  artist?: string;
+/** Snapshot of the player state the main window reports; the tray display and
+ * the flyout window render from this single source (PRD §10.4 — no forked
+ * playback state between windows). */
+export interface PlayerStateSnapshot {
+  playlists: { id: PlaylistId; name: string; trackCount: number }[];
+  selectedPlaylistId: PlaylistId | null;
+  /** Resolved tracks of the selected playlist, in playlist order. */
+  tracks: Track[];
+  currentTrack: Track | null;
   isPlaying: boolean;
+  position: number;
+  shuffle: boolean;
+  repeat: RepeatMode;
 }

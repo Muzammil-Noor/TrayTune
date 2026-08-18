@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from "electron";
+import { registerFlyoutIpc } from "./ipc/flyout";
 import { registerPlayerIpc } from "./ipc/player";
 import { registerSettingsIpc } from "./ipc/settings";
 import { registerSystemIpc } from "./ipc/system";
@@ -29,8 +30,9 @@ if (!gotSingleInstanceLock) {
     registerSystemIpc();
     registerSettingsIpc();
     registerPlayerIpc();
-    const window = createMainWindow();
-    createTray(window);
+    registerFlyoutIpc();
+    createMainWindow();
+    createTray();
   });
 
   // Ordered shutdown (PRD §66): stop playback → finish persistence → destroy

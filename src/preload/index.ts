@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
   AppSettings,
-  NowPlayingInfo,
-  PlayerCommand,
+  PlayerAction,
+  PlayerStateSnapshot,
 } from "../shared/types";
 
 // Minimal typed surface for the renderer. Feature APIs (library.*, playlist.*,
@@ -26,14 +26,40 @@ const api = {
       ipcRenderer.invoke("settings:update", patch),
   },
   player: {
-    onCommand: (callback: (command: PlayerCommand) => void): (() => void) => {
-      const listener = (_event: unknown, command: PlayerCommand) =>
-        callback(command);
+    /** Main window: receive actions from the tray/flyout. */
+    onAction: (callback: (action: PlayerAction) => void): (() => void) => {
+      const listener = (_event: unknown, action: PlayerAction) =>
+        callback(action);
       ipcRenderer.on("player:command", listener);
       return () => ipcRenderer.removeListener("player:command", listener);
     },
-    reportNowPlaying: (info: NowPlayingInfo | null): void => {
-      ipcRenderer.send("player:now-playing", info);
+    /** Flyout: send an action for the main window's player to apply. */
+    sendAction: (action: PlayerAction): void => {
+      ipcRenderer.send("player:action", action);
+    },
+    /** Main window: report the full player state after every change. */
+    reportState: (snapshot: PlayerStateSnapshot): void => {
+      ipcRenderer.send("player:state-report", snapshot);
+    },
+    /** Flyout: receive player state snapshots. */
+    onState: (
+      callback: (snapshot: PlayerStateSnapshot) => void,
+    ): (() => void) => {
+      const listener = (_event: unknown, snapshot: PlayerStateSnapshot) =>
+        callback(snapshot);
+      ipcRenderer.on("player:state", listener);
+      return () => ipcRenderer.removeListener("player:state", listener);
+    },
+  },
+  flyout: {
+    hide: (): void => {
+      ipcRenderer.send("flyout:hide");
+    },
+    toggle: (): void => {
+      ipcRenderer.send("flyout:toggle");
+    },
+    openMainWindow: (): void => {
+      ipcRenderer.send("flyout:open-main-window");
     },
   },
 };
