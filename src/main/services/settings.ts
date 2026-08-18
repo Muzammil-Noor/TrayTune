@@ -18,7 +18,9 @@ function settingsFile(): string {
 export function loadSettings(): void {
   settings = { ...DEFAULT_SETTINGS };
   try {
-    const parsed: unknown = JSON.parse(readFileSync(settingsFile(), "utf8"));
+    // Strip a UTF-8 BOM — editors and tools may add one, and JSON.parse rejects it.
+    const raw = readFileSync(settingsFile(), "utf8").replace(/^\uFEFF/, "");
+    const parsed: unknown = JSON.parse(raw);
     if (typeof parsed === "object" && parsed !== null) {
       const record = parsed as Record<string, unknown>;
       if (typeof record.closeToTray === "boolean") {
