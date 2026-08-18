@@ -1,4 +1,8 @@
-import type { AppSettings, PlayerCommand } from "../shared/types";
+import type {
+  AppSettings,
+  NowPlayingInfo,
+  PlayerCommand,
+} from "../shared/types";
 
 export interface TrayTuneApi {
   readonly platform: string;
@@ -16,6 +20,8 @@ export interface TrayTuneApi {
     /** Playback commands from the main process (tray menu, media keys later).
      * Returns an unsubscribe function. */
     onCommand(callback: (command: PlayerCommand) => void): () => void;
+    /** Reports the current track (or null) so the tray can display it. */
+    reportNowPlaying(info: NowPlayingInfo | null): void;
   };
 }
 

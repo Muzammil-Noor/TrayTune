@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from "electron";
+import { registerPlayerIpc } from "./ipc/player";
 import { registerSettingsIpc } from "./ipc/settings";
 import { registerSystemIpc } from "./ipc/system";
 import { markQuitting } from "./lifecycle";
@@ -27,16 +28,23 @@ if (!gotSingleInstanceLock) {
     loadSettings();
     registerSystemIpc();
     registerSettingsIpc();
+    registerPlayerIpc();
     const window = createMainWindow();
     createTray(window);
   });
 
+  // Ordered shutdown (PRD §66): stop playback → finish persistence → destroy
+  // tray → close windows → quit. Playback stop hooks in here in Phase 4 (the
+  // window teardown ends mock/renderer audio); settings writes are synchronous,
+  // so nothing is pending by this point.
   app.on("before-quit", () => {
+    console.log("[main] shutting down");
     markQuitting();
+    destroyTray();
   });
 
   app.on("will-quit", () => {
-    destroyTray();
+    console.log("[main] shutdown complete");
   });
 
   // Fires only when the window really closes (closeToTray off or app quit).

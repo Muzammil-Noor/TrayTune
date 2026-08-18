@@ -35,3 +35,10 @@ export interface AppSettings {
 /** Playback actions the main process (tray menu, later media keys) can send
  * to the player. */
 export type PlayerCommand = "play-pause" | "previous" | "next";
+
+/** What the renderer reports to the main process for the tray display. */
+export interface NowPlayingInfo {
+  title: string;
+  artist?: string;
+  isPlaying: boolean;
+}

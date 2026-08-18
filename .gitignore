@@ -24,3 +24,4 @@ out
 *.sln
 *.sw?
 .env
+*.md

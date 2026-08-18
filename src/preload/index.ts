@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AppSettings, PlayerCommand } from "../shared/types";
+import type {
+  AppSettings,
+  NowPlayingInfo,
+  PlayerCommand,
+} from "../shared/types";
 
 // Minimal typed surface for the renderer. Feature APIs (library.*, playlist.*,
 // youtube.*, …) are added here phase by phase — never expose ipcRenderer or
@@ -27,6 +31,9 @@ const api = {
         callback(command);
       ipcRenderer.on("player:command", listener);
       return () => ipcRenderer.removeListener("player:command", listener);
+    },
+    reportNowPlaying: (info: NowPlayingInfo | null): void => {
+      ipcRenderer.send("player:now-playing", info);
     },
   },
 };

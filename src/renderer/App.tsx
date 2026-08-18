@@ -31,6 +31,20 @@ export default function App() {
     return unsubscribe;
   }, []);
 
+  // Keep the tray display in sync with the current track (task 2.8).
+  const { currentTrack, isPlaying } = player;
+  useEffect(() => {
+    window.traytune?.player.reportNowPlaying(
+      currentTrack
+        ? {
+            title: currentTrack.title,
+            artist: currentTrack.artist,
+            isPlaying,
+          }
+        : null,
+    );
+  }, [currentTrack, isPlaying]);
+
   return (
     <div className="flex h-full">
       <Sidebar
