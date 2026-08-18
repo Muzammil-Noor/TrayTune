@@ -2,6 +2,8 @@ import { BrowserWindow, nativeTheme, shell } from "electron";
 import { join } from "path";
 import { isQuitting } from "../lifecycle";
 import { getSettings } from "../services/settings";
+import { destroyFlyout } from "./flyout-window";
+import { setMainWindow } from "./registry";
 
 export function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -37,6 +39,9 @@ export function createMainWindow(): BrowserWindow {
 
   window.on("closed", () => {
     console.log("[main] main window closed");
+    setMainWindow(null);
+    // A hidden flyout must not keep the app alive after a real window close.
+    destroyFlyout();
   });
 
   window.webContents.on("did-fail-load", (_event, code, description, url) => {
@@ -59,5 +64,6 @@ export function createMainWindow(): BrowserWindow {
     window.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
+  setMainWindow(window);
   return window;
 }

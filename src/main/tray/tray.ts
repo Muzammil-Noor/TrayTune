@@ -1,22 +1,24 @@
-import { app, BrowserWindow, Menu, nativeImage, Tray } from "electron";
-import type { NowPlayingInfo, PlayerCommand } from "../../shared/types";
+import { app, Menu, nativeImage, Tray } from "electron";
+import { dispatchPlayerAction } from "../player-bus";
+import { toggleFlyout } from "../windows/flyout-window";
+import { getMainWindow } from "../windows/registry";
 import trayIconPath from "../../../resources/tray-icon.png?asset";
 
-let tray: Tray | null = null;
-let trayWindow: BrowserWindow | null = null;
-let nowPlaying: NowPlayingInfo | null = null;
-
-function sendPlayerCommand(command: PlayerCommand): void {
-  if (trayWindow && !trayWindow.isDestroyed()) {
-    trayWindow.webContents.send("player:command", command);
-  }
+interface TrayNowPlaying {
+  title: string;
+  artist?: string;
+  isPlaying: boolean;
 }
 
-function showWindow(): void {
-  if (!trayWindow || trayWindow.isDestroyed()) return;
-  if (trayWindow.isMinimized()) trayWindow.restore();
-  trayWindow.show();
-  trayWindow.focus();
+let tray: Tray | null = null;
+let nowPlaying: TrayNowPlaying | null = null;
+
+export function showMainWindow(): void {
+  const window = getMainWindow();
+  if (!window) return;
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
 }
 
 function shorten(text: string, max = 40): string {
@@ -44,12 +46,15 @@ function rebuildMenu(): void {
       ...nowPlayingItems,
       {
         label: nowPlaying?.isPlaying ? "Pause" : "Play",
-        click: () => sendPlayerCommand("play-pause"),
+        click: () => dispatchPlayerAction({ type: "play-pause" }),
       },
-      { label: "Previous", click: () => sendPlayerCommand("previous") },
-      { label: "Next", click: () => sendPlayerCommand("next") },
+      {
+        label: "Previous",
+        click: () => dispatchPlayerAction({ type: "previous" }),
+      },
+      { label: "Next", click: () => dispatchPlayerAction({ type: "next" }) },
       { type: "separator" },
-      { label: "Open TrayTune", click: () => showWindow() },
+      { label: "Open TrayTune", click: () => showMainWindow() },
       { label: "Exit", click: () => app.quit() },
     ]),
   );
@@ -59,26 +64,21 @@ function rebuildMenu(): void {
   );
 }
 
-export function createTray(window: BrowserWindow): Tray {
-  trayWindow = window;
+export function createTray(): Tray {
   tray = new Tray(nativeImage.createFromPath(trayIconPath));
   rebuildMenu();
 
-  // Single click toggles the window, like most Windows tray players.
+  // Left click opens the flyout mini player above the tray (Twinkle Tray
+  // style); right click keeps the context menu.
   tray.on("click", () => {
-    if (!trayWindow || trayWindow.isDestroyed()) return;
-    if (trayWindow.isVisible() && trayWindow.isFocused()) {
-      trayWindow.hide();
-    } else {
-      showWindow();
-    }
+    toggleFlyout();
   });
 
   console.log("[main] tray created");
   return tray;
 }
 
-export function updateTrayNowPlaying(info: NowPlayingInfo | null): void {
+export function updateTrayNowPlaying(info: TrayNowPlaying | null): void {
   nowPlaying = info;
   rebuildMenu();
   console.log(
@@ -90,5 +90,4 @@ export function updateTrayNowPlaying(info: NowPlayingInfo | null): void {
 export function destroyTray(): void {
   tray?.destroy();
   tray = null;
-  trayWindow = null;
 }
