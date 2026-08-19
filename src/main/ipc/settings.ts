@@ -10,6 +10,9 @@ function sanitize(patch: unknown): Partial<AppSettings> {
     if (typeof record.closeToTray === "boolean") {
       result.closeToTray = record.closeToTray;
     }
+    if (typeof record.runOnStartup === "boolean") {
+      result.runOnStartup = record.runOnStartup;
+    }
   }
   return result;
 }

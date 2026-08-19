@@ -27,9 +27,20 @@ export interface Playlist {
 
 export type RepeatMode = "off" | "all" | "one";
 
+/** How TrayTune presents itself when launched at Windows sign-in:
+ * "tray" stays hidden with the tray/flyout ready; "window" opens the main
+ * window. Manual launches always show the main window. */
+export type StartupMode = "tray" | "window";
+
 export interface AppSettings {
   /** When true, the window's close button hides to the tray instead of quitting. */
   closeToTray: boolean;
+  /** Launch TrayTune when the user signs in to Windows. Backed by the OS
+   * login-item registration, not settings.json — the OS is the source of
+   * truth so Task Manager changes stay honest. */
+  runOnStartup: boolean;
+  /** Only takes effect for sign-in launches (see runOnStartup). */
+  startupMode: StartupMode;
 }
 
 /** Player actions that can originate outside the main window (tray menu,

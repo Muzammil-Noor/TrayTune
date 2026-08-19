@@ -10,7 +10,10 @@ interface SettingsDialogProps {
   usingWindowsAccent: boolean;
   /** null while settings are loading/unavailable. */
   closeToTray: boolean | null;
+  /** null while settings are loading/unavailable. */
+  runOnStartup: boolean | null;
   onCloseToTrayChange: (value: boolean) => void;
+  onRunOnStartupChange: (value: boolean) => void;
   onThemeChange: (preference: ThemePreference) => void;
   onClose: () => void;
 }
@@ -28,7 +31,9 @@ export function SettingsDialog({
   themePreference,
   usingWindowsAccent,
   closeToTray,
+  runOnStartup,
   onCloseToTrayChange,
+  onRunOnStartupChange,
   onThemeChange,
   onClose,
 }: SettingsDialogProps) {
@@ -71,16 +76,29 @@ export function SettingsDialog({
 
         <section>
           <h3 className="pb-2 text-sm font-medium">Behavior</h3>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-secondary">
-              Keep running in the tray when the window is closed
-            </span>
-            <ToggleSwitch
-              checked={closeToTray ?? true}
-              disabled={closeToTray === null}
-              aria-label="Keep running in the tray when the window is closed"
-              onChange={onCloseToTrayChange}
-            />
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-secondary">
+                Keep running in the tray when the window is closed
+              </span>
+              <ToggleSwitch
+                checked={closeToTray ?? true}
+                disabled={closeToTray === null}
+                aria-label="Keep running in the tray when the window is closed"
+                onChange={onCloseToTrayChange}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-secondary">
+                Run on startup when you sign in to Windows
+              </span>
+              <ToggleSwitch
+                checked={runOnStartup ?? false}
+                disabled={runOnStartup === null}
+                aria-label="Run on startup when you sign in to Windows"
+                onChange={onRunOnStartupChange}
+              />
+            </div>
           </div>
         </section>
       </div>
