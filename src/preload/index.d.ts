@@ -25,11 +25,15 @@ export interface TrayTuneApi {
     reportState(snapshot: PlayerStateSnapshot): void;
     /** Flyout: receive player state snapshots. Returns unsubscribe. */
     onState(callback: (snapshot: PlayerStateSnapshot) => void): () => void;
+    /** Flyout: pull the latest snapshot on mount (push alone can race). */
+    getState(): Promise<PlayerStateSnapshot | null>;
   };
   readonly flyout: {
     hide(): void;
     toggle(): void;
     openMainWindow(): void;
+    /** Report song-list expansion so the window resizes to match. */
+    setExpanded(value: boolean): void;
   };
 }
 

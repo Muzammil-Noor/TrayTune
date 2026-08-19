@@ -50,10 +50,16 @@ const api = {
       ipcRenderer.on("player:state", listener);
       return () => ipcRenderer.removeListener("player:state", listener);
     },
+    /** Flyout: pull the latest snapshot on mount (push alone can race). */
+    getState: (): Promise<PlayerStateSnapshot | null> =>
+      ipcRenderer.invoke("player:get-state"),
   },
   flyout: {
     hide: (): void => {
       ipcRenderer.send("flyout:hide");
+    },
+    setExpanded: (value: boolean): void => {
+      ipcRenderer.send("flyout:set-expanded", value);
     },
     toggle: (): void => {
       ipcRenderer.send("flyout:toggle");

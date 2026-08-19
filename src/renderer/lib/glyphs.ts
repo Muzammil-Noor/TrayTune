@@ -4,6 +4,8 @@
  */
 export const glyphs = {
   navButton: "\uE700",
+  chevronDown: "\uE70D",
+  chevronUp: "\uE70E",
   openInNewWindow: "\uE8A7",
   add: "\uE710",
   cancel: "\uE711",
