@@ -28,6 +28,8 @@ export default function FlyoutApp() {
   const { settings } = useAppSettings();
   const [state, setState] = useState<PlayerStateSnapshot | null>(null);
   const [listExpanded, setListExpanded] = useState(false);
+  /** Keeps the list mounted while the window's 300ms shrink animation plays. */
+  const [listClosing, setListClosing] = useState(false);
   const [drawer, setDrawer] = useState<DrawerPhase>("closed");
 
   useEffect(() => {
@@ -65,7 +67,14 @@ export default function FlyoutApp() {
 
   function setListTo(next: boolean) {
     setListExpanded(next);
-    if (!next) setDrawer("closed"); // the drawer only exists in expanded mode
+    if (next) {
+      setListClosing(false);
+    } else {
+      setDrawer("closed"); // the drawer only exists in expanded mode
+      // Unmount only after the window shrink finishes (RESIZE_MS in main).
+      setListClosing(true);
+      window.setTimeout(() => setListClosing(false), 320);
+    }
     window.traytune?.flyout.setExpanded(next);
   }
 
@@ -130,8 +139,8 @@ export default function FlyoutApp() {
 
       {state ? (
         <>
-          {listExpanded && (
-            <div className="flex min-h-0 flex-1 flex-col rounded-tl-lg border-l border-t border-stroke bg-surface">
+          {(listExpanded || listClosing) && (
+            <div className="animate-in fade-in flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-l border-t border-stroke bg-surface duration-300">
               <TrackList
                 playlistName={selectedPlaylist?.name}
                 tracks={state.tracks}

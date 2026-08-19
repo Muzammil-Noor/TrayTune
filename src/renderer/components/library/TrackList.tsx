@@ -55,10 +55,7 @@ export function TrackList({
               <button
                 key={track.id}
                 type="button"
-                onDoubleClick={() => onPlay(track.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") onPlay(track.id);
-                }}
+                onClick={() => onPlay(track.id)}
                 onContextMenu={(event) => {
                   event.preventDefault();
                   setMenu({ x: event.clientX, y: event.clientY, track });

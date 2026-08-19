@@ -92,10 +92,52 @@ function positionFlyout(flyout: BrowserWindow): void {
   });
 }
 
+/** Windows has no native animated setBounds, so tween it: ~60fps eased
+ * resize, bottom edge pinned to the tray corner. Keep RESIZE_MS in sync with
+ * the renderer's list-unmount delay in FlyoutApp. */
+const RESIZE_MS = 300;
+let resizeTimer: NodeJS.Timeout | null = null;
+
+function cancelResizeAnimation(): void {
+  if (resizeTimer) {
+    clearInterval(resizeTimer);
+    resizeTimer = null;
+  }
+}
+
+function animateToCurrentHeight(flyout: BrowserWindow): void {
+  cancelResizeAnimation();
+  const { workArea } = screen.getPrimaryDisplay();
+  const x = workArea.x + workArea.width - FLYOUT_WIDTH - MARGIN;
+  const bottom = workArea.y + workArea.height - MARGIN;
+  const target = currentHeight();
+  const startHeight = flyout.getBounds().height;
+  const delta = target - startHeight;
+  if (delta === 0) return;
+
+  const startedAt = Date.now();
+  const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+  resizeTimer = setInterval(() => {
+    if (flyout.isDestroyed()) {
+      cancelResizeAnimation();
+      return;
+    }
+    const t = Math.min(1, (Date.now() - startedAt) / RESIZE_MS);
+    const height = Math.round(startHeight + delta * easeOutCubic(t));
+    flyout.setBounds({ x, y: bottom - height, width: FLYOUT_WIDTH, height });
+    if (t >= 1) cancelResizeAnimation();
+  }, 16);
+}
+
 export function setFlyoutExpanded(value: boolean): void {
   expanded = value;
   const flyout = getFlyoutWindow();
-  if (flyout) positionFlyout(flyout);
+  if (!flyout) return;
+  if (flyout.isVisible()) {
+    animateToCurrentHeight(flyout);
+  } else {
+    positionFlyout(flyout);
+  }
 }
 
 /** Tray left-click behavior: open above the tray, or close if it was open. */
@@ -119,10 +161,12 @@ export function toggleFlyout(): void {
 }
 
 export function hideFlyout(): void {
+  cancelResizeAnimation();
   getFlyoutWindow()?.hide();
 }
 
 export function destroyFlyout(): void {
+  cancelResizeAnimation();
   const flyout = getFlyoutWindow();
   if (flyout) {
     flyout.destroy(); // bypasses the close handler's hide-instead-of-close

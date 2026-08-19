@@ -27,7 +27,7 @@ export function PlaylistDrawer({
   return (
     <div
       className={cn(
-        "absolute inset-0 z-40 bg-black/40 duration-150",
+        "absolute inset-0 z-40 bg-black/40 duration-300",
         closing
           ? "animate-out fade-out fill-mode-forwards"
           : "animate-in fade-in",
@@ -38,7 +38,7 @@ export function PlaylistDrawer({
     >
       <div
         className={cn(
-          "absolute left-0 top-0 flex h-full w-56 flex-col border-r border-stroke bg-surface shadow-lg duration-150",
+          "absolute left-0 top-0 flex h-full w-56 flex-col border-r border-stroke bg-surface shadow-lg duration-300",
           closing
             ? "animate-out slide-out-to-left fill-mode-forwards"
             : "animate-in slide-in-from-left",
