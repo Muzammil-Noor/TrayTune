@@ -5,8 +5,17 @@ import { sendCachedStateToFlyout } from "../player-bus";
 import { getFlyoutWindow, setFlyoutWindow } from "./registry";
 
 const FLYOUT_WIDTH = 380;
-const FLYOUT_HEIGHT = 520;
+const COMPACT_HEIGHT = 190; // header + player only (song list collapsed)
+const EXPANDED_HEIGHT = 520;
 const MARGIN = 12;
+
+/** The renderer starts with the song list collapsed; it reports expansion
+ * changes via flyout:set-expanded so the window can resize to match. */
+let expanded = false;
+
+function currentHeight(): number {
+  return expanded ? EXPANDED_HEIGHT : COMPACT_HEIGHT;
+}
 
 /** Tray-icon clicks arrive right after the flyout's own blur has hidden it;
  * within this window we treat the click as "toggle closed", not "reopen". */
@@ -14,9 +23,10 @@ let lastBlurAt = 0;
 const BLUR_TOGGLE_GRACE_MS = 300;
 
 function createFlyoutWindow(): BrowserWindow {
+  expanded = false; // fresh windows always mount with the list collapsed
   const flyout = new BrowserWindow({
     width: FLYOUT_WIDTH,
-    height: FLYOUT_HEIGHT,
+    height: COMPACT_HEIGHT,
     show: false,
     frame: false,
     resizable: false,
@@ -69,12 +79,23 @@ function createFlyoutWindow(): BrowserWindow {
   return flyout;
 }
 
+/** Anchors the flyout to the bottom-right of the work area at its current
+ * size, so expanding grows it upward from the tray corner. */
 function positionFlyout(flyout: BrowserWindow): void {
   const { workArea } = screen.getPrimaryDisplay();
-  flyout.setPosition(
-    workArea.x + workArea.width - FLYOUT_WIDTH - MARGIN,
-    workArea.y + workArea.height - FLYOUT_HEIGHT - MARGIN,
-  );
+  const height = currentHeight();
+  flyout.setBounds({
+    x: workArea.x + workArea.width - FLYOUT_WIDTH - MARGIN,
+    y: workArea.y + workArea.height - height - MARGIN,
+    width: FLYOUT_WIDTH,
+    height,
+  });
+}
+
+export function setFlyoutExpanded(value: boolean): void {
+  expanded = value;
+  const flyout = getFlyoutWindow();
+  if (flyout) positionFlyout(flyout);
 }
 
 /** Tray left-click behavior: open above the tray, or close if it was open. */

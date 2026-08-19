@@ -23,3 +23,8 @@ export function sendCachedStateToFlyout(): void {
     getFlyoutWindow()?.webContents.send("player:state", lastSnapshot);
   }
 }
+
+/** The flyout pulls this on mount — pushes alone can race its subscription. */
+export function getCachedState(): PlayerStateSnapshot | null {
+  return lastSnapshot;
+}

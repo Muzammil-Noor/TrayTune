@@ -1,6 +1,10 @@
 import { ipcMain } from "electron";
 import type { PlayerAction, PlayerStateSnapshot } from "../../shared/types";
-import { dispatchPlayerAction, publishPlayerState } from "../player-bus";
+import {
+  dispatchPlayerAction,
+  getCachedState,
+  publishPlayerState,
+} from "../player-bus";
 import { updateTrayNowPlaying } from "../tray/tray";
 
 const MAX_LABEL_LENGTH = 128;
@@ -46,6 +50,9 @@ export function registerPlayerIpc(): void {
     const sanitized = sanitizeAction(action);
     if (sanitized) dispatchPlayerAction(sanitized);
   });
+
+  // Race-free state bootstrap for the flyout.
+  ipcMain.handle("player:get-state", () => getCachedState());
 
   // State snapshots from the main window: feed the tray display and relay to
   // the flyout.
