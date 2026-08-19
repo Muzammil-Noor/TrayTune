@@ -41,6 +41,10 @@ export interface AppSettings {
   runOnStartup: boolean;
   /** Only takes effect for sign-in launches (see runOnStartup). */
   startupMode: StartupMode;
+  /** Flyout: close the playlist drawer after selecting a playlist. */
+  flyoutCollapseSidebarOnSelect: boolean;
+  /** Flyout: collapse the song list back to compact mode after picking a song. */
+  flyoutCollapseSongListOnPlay: boolean;
 }
 
 /** Player actions that can originate outside the main window (tray menu,

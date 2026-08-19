@@ -8,12 +8,22 @@ import type { AppSettings, StartupMode } from "../../shared/types";
 interface PersistedSettings {
   closeToTray: boolean;
   startupMode: StartupMode;
+  flyoutCollapseSidebarOnSelect: boolean;
+  flyoutCollapseSongListOnPlay: boolean;
 }
 
 const DEFAULT_SETTINGS: PersistedSettings = {
   closeToTray: true,
   startupMode: "tray",
+  flyoutCollapseSidebarOnSelect: true,
+  flyoutCollapseSongListOnPlay: false,
 };
+
+const BOOLEAN_KEYS = [
+  "closeToTray",
+  "flyoutCollapseSidebarOnSelect",
+  "flyoutCollapseSongListOnPlay",
+] as const;
 
 /** Present in argv when Windows launched us at sign-in (see loginItemOptions). */
 export const STARTUP_ARG = "--startup";
@@ -63,8 +73,10 @@ export function loadSettings(): void {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed === "object" && parsed !== null) {
       const record = parsed as Record<string, unknown>;
-      if (typeof record.closeToTray === "boolean") {
-        settings.closeToTray = record.closeToTray;
+      for (const key of BOOLEAN_KEYS) {
+        if (typeof record[key] === "boolean") {
+          settings[key] = record[key];
+        }
       }
       if (record.startupMode === "tray" || record.startupMode === "window") {
         settings.startupMode = record.startupMode;
@@ -86,12 +98,18 @@ export function updateSettings(patch: Partial<AppSettings>): AppSettings {
     applyRunOnStartup(patch.runOnStartup);
   }
 
-  if (patch.closeToTray !== undefined || patch.startupMode !== undefined) {
-    settings = {
-      ...settings,
-      ...(patch.closeToTray !== undefined && { closeToTray: patch.closeToTray }),
-      ...(patch.startupMode !== undefined && { startupMode: patch.startupMode }),
-    };
+  const persistedPatch: Partial<PersistedSettings> = {};
+  for (const key of BOOLEAN_KEYS) {
+    if (typeof patch[key] === "boolean") {
+      persistedPatch[key] = patch[key];
+    }
+  }
+  if (patch.startupMode !== undefined) {
+    persistedPatch.startupMode = patch.startupMode;
+  }
+
+  if (Object.keys(persistedPatch).length > 0) {
+    settings = { ...settings, ...persistedPatch };
     try {
       const file = settingsFile();
       mkdirSync(dirname(file), { recursive: true });

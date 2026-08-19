@@ -11,6 +11,8 @@ export function useAppSettings() {
       .get()
       .then(setSettings)
       .catch(() => setSettings(null));
+    // Stay in sync when another window (main vs flyout) changes settings.
+    return window.traytune?.settings.onChanged(setSettings);
   }, []);
 
   function update(patch: Partial<AppSettings>) {

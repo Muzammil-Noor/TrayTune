@@ -24,6 +24,12 @@ const api = {
     get: (): Promise<AppSettings> => ipcRenderer.invoke("settings:get"),
     update: (patch: Partial<AppSettings>): Promise<AppSettings> =>
       ipcRenderer.invoke("settings:update", patch),
+    onChanged: (callback: (settings: AppSettings) => void): (() => void) => {
+      const listener = (_event: unknown, settings: AppSettings) =>
+        callback(settings);
+      ipcRenderer.on("settings:changed", listener);
+      return () => ipcRenderer.removeListener("settings:changed", listener);
+    },
   },
   player: {
     /** Main window: receive actions from the tray/flyout. */

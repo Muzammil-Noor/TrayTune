@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import type { PlayerAction, PlayerStateSnapshot } from "@shared/types";
+import type {
+  PlayerAction,
+  PlayerStateSnapshot,
+  PlaylistId,
+  TrackId,
+} from "@shared/types";
 import { FlyoutPlayer } from "./components/flyout/FlyoutPlayer";
 import { PlaylistDrawer } from "./components/flyout/PlaylistDrawer";
 import { TrackList } from "./components/library/TrackList";
 import { Button } from "./components/ui/Button";
 import { Icon } from "./components/ui/Icon";
 import { useAccent } from "./hooks/use-accent";
+import { useAppSettings } from "./hooks/use-app-settings";
 import { useTheme } from "./hooks/use-theme";
 import { glyphs } from "./lib/glyphs";
 
@@ -19,6 +25,7 @@ type DrawerPhase = "closed" | "open" | "closing";
 export default function FlyoutApp() {
   useTheme();
   useAccent();
+  const { settings } = useAppSettings();
   const [state, setState] = useState<PlayerStateSnapshot | null>(null);
   const [listExpanded, setListExpanded] = useState(false);
   const [drawer, setDrawer] = useState<DrawerPhase>("closed");
@@ -56,8 +63,7 @@ export default function FlyoutApp() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  function toggleList() {
-    const next = !listExpanded;
+  function setListTo(next: boolean) {
     setListExpanded(next);
     if (!next) setDrawer("closed"); // the drawer only exists in expanded mode
     window.traytune?.flyout.setExpanded(next);
@@ -65,6 +71,17 @@ export default function FlyoutApp() {
 
   const send = (action: PlayerAction) =>
     window.traytune?.player.sendAction(action);
+
+  function handlePlay(trackId: TrackId) {
+    send({ type: "play-track", trackId });
+    if (settings?.flyoutCollapseSongListOnPlay) setListTo(false);
+  }
+
+  function handleSelectPlaylist(playlistId: PlaylistId) {
+    send({ type: "select-playlist", playlistId });
+    // Default to auto-closing while settings are still loading.
+    if (settings?.flyoutCollapseSidebarOnSelect ?? true) setDrawer("closing");
+  }
 
   const selectedPlaylist = state?.playlists.find(
     (playlist) => playlist.id === state.selectedPlaylistId,
@@ -96,7 +113,7 @@ export default function FlyoutApp() {
           title={listExpanded ? "Hide song list" : "Show song list"}
           aria-label={listExpanded ? "Hide song list" : "Show song list"}
           aria-expanded={listExpanded}
-          onClick={toggleList}
+          onClick={() => setListTo(!listExpanded)}
         >
           <Icon glyph={listExpanded ? glyphs.chevronDown : glyphs.chevronUp} />
         </Button>
@@ -119,7 +136,7 @@ export default function FlyoutApp() {
                 playlistName={selectedPlaylist?.name}
                 tracks={state.tracks}
                 currentTrackId={state.currentTrack?.id ?? null}
-                onPlay={(trackId) => send({ type: "play-track", trackId })}
+                onPlay={handlePlay}
                 onRemoveFromPlaylist={(trackId) =>
                   send({ type: "remove-from-playlist", trackId })
                 }
@@ -142,7 +159,7 @@ export default function FlyoutApp() {
           playlists={state.playlists}
           selectedPlaylistId={state.selectedPlaylistId}
           closing={drawer === "closing"}
-          onSelect={(playlistId) => send({ type: "select-playlist", playlistId })}
+          onSelect={handleSelectPlaylist}
           onClose={() => setDrawer("closing")}
           onExited={() => setDrawer("closed")}
         />

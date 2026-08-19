@@ -15,6 +15,8 @@ export interface TrayTuneApi {
   readonly settings: {
     get(): Promise<AppSettings>;
     update(patch: Partial<AppSettings>): Promise<AppSettings>;
+    /** Fires in every window whenever settings change. Returns unsubscribe. */
+    onChanged(callback: (settings: AppSettings) => void): () => void;
   };
   readonly player: {
     /** Main window: actions from the tray menu / flyout. Returns unsubscribe. */

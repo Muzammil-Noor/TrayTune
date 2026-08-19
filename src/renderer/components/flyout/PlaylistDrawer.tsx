@@ -58,10 +58,7 @@ export function PlaylistDrawer({
               <button
                 key={playlist.id}
                 type="button"
-                onClick={() => {
-                  onSelect(playlist.id);
-                  onClose();
-                }}
+                onClick={() => onSelect(playlist.id)}
                 className={cn(
                   "relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
                   selected

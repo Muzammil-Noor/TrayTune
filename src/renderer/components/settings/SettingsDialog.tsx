@@ -1,4 +1,4 @@
-import type { StartupMode } from "@shared/types";
+import type { AppSettings, StartupMode } from "@shared/types";
 import type { ThemePreference } from "@/hooks/use-theme";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -10,17 +10,17 @@ interface SettingsDialogProps {
   /** True when the accent comes from Windows, false on the fallback accent. */
   usingWindowsAccent: boolean;
   /** null while settings are loading/unavailable. */
-  closeToTray: boolean | null;
-  /** null while settings are loading/unavailable. */
-  runOnStartup: boolean | null;
-  /** null while settings are loading/unavailable. */
-  startupMode: StartupMode | null;
-  onCloseToTrayChange: (value: boolean) => void;
-  onRunOnStartupChange: (value: boolean) => void;
-  onStartupModeChange: (value: StartupMode) => void;
+  settings: AppSettings | null;
+  onUpdate: (patch: Partial<AppSettings>) => void;
   onThemeChange: (preference: ThemePreference) => void;
   onClose: () => void;
 }
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
 
 const STARTUP_MODE_OPTIONS: {
   value: StartupMode;
@@ -39,11 +39,25 @@ const STARTUP_MODE_OPTIONS: {
   },
 ];
 
-const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-];
+interface ToggleRowProps {
+  label: string;
+  checked: boolean | undefined;
+  onChange: (value: boolean) => void;
+}
+
+function ToggleRow({ label, checked, onChange }: ToggleRowProps) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm text-secondary">{label}</span>
+      <ToggleSwitch
+        checked={checked ?? false}
+        disabled={checked === undefined}
+        aria-label={label}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
 
 /** Minimal settings surface for Phase 1 (theme + accent info). Grows into the
  * full settings area (§35) once the settings service exists. */
@@ -51,12 +65,8 @@ export function SettingsDialog({
   open,
   themePreference,
   usingWindowsAccent,
-  closeToTray,
-  runOnStartup,
-  startupMode,
-  onCloseToTrayChange,
-  onRunOnStartupChange,
-  onStartupModeChange,
+  settings,
+  onUpdate,
   onThemeChange,
   onClose,
 }: SettingsDialogProps) {
@@ -100,29 +110,17 @@ export function SettingsDialog({
         <section>
           <h3 className="pb-2 text-sm font-medium">Behavior</h3>
           <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-secondary">
-                Keep running in the tray when the window is closed
-              </span>
-              <ToggleSwitch
-                checked={closeToTray ?? true}
-                disabled={closeToTray === null}
-                aria-label="Keep running in the tray when the window is closed"
-                onChange={onCloseToTrayChange}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-secondary">
-                Run on startup when you sign in to Windows
-              </span>
-              <ToggleSwitch
-                checked={runOnStartup ?? false}
-                disabled={runOnStartup === null}
-                aria-label="Run on startup when you sign in to Windows"
-                onChange={onRunOnStartupChange}
-              />
-            </div>
-            {runOnStartup === true && (
+            <ToggleRow
+              label="Keep running in the tray when the window is closed"
+              checked={settings?.closeToTray}
+              onChange={(value) => onUpdate({ closeToTray: value })}
+            />
+            <ToggleRow
+              label="Run on startup when you sign in to Windows"
+              checked={settings?.runOnStartup}
+              onChange={(value) => onUpdate({ runOnStartup: value })}
+            />
+            {settings?.runOnStartup === true && (
               <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-secondary">Startup behavior</span>
                 <div
@@ -136,12 +134,13 @@ export function SettingsDialog({
                       size="sm"
                       role="radio"
                       title={option.title}
-                      aria-checked={startupMode === option.value}
+                      aria-checked={settings.startupMode === option.value}
                       variant={
-                        startupMode === option.value ? "accent" : "standard"
+                        settings.startupMode === option.value
+                          ? "accent"
+                          : "standard"
                       }
-                      disabled={startupMode === null}
-                      onClick={() => onStartupModeChange(option.value)}
+                      onClick={() => onUpdate({ startupMode: option.value })}
                     >
                       {option.label}
                     </Button>
@@ -149,6 +148,26 @@ export function SettingsDialog({
                 </div>
               </div>
             )}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="pb-2 text-sm font-medium">Flyout</h3>
+          <div className="flex flex-col gap-3">
+            <ToggleRow
+              label="Collapse sidebar after selecting a playlist"
+              checked={settings?.flyoutCollapseSidebarOnSelect}
+              onChange={(value) =>
+                onUpdate({ flyoutCollapseSidebarOnSelect: value })
+              }
+            />
+            <ToggleRow
+              label="Collapse song list after selecting a song"
+              checked={settings?.flyoutCollapseSongListOnPlay}
+              onChange={(value) =>
+                onUpdate({ flyoutCollapseSongListOnPlay: value })
+              }
+            />
           </div>
         </section>
       </div>
