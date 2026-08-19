@@ -152,8 +152,10 @@ export default function App() {
         usingWindowsAccent={accent !== null}
         closeToTray={appSettings.settings?.closeToTray ?? null}
         runOnStartup={appSettings.settings?.runOnStartup ?? null}
+        startupMode={appSettings.settings?.startupMode ?? null}
         onCloseToTrayChange={(value) => appSettings.update({ closeToTray: value })}
         onRunOnStartupChange={(value) => appSettings.update({ runOnStartup: value })}
+        onStartupModeChange={(value) => appSettings.update({ startupMode: value })}
         onThemeChange={theme.setPreference}
         onClose={() => setSettingsOpen(false)}
       />

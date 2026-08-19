@@ -66,6 +66,9 @@ export function loadSettings(): void {
       if (typeof record.closeToTray === "boolean") {
         settings.closeToTray = record.closeToTray;
       }
+      if (record.startupMode === "tray" || record.startupMode === "window") {
+        settings.startupMode = record.startupMode;
+      }
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
@@ -83,8 +86,12 @@ export function updateSettings(patch: Partial<AppSettings>): AppSettings {
     applyRunOnStartup(patch.runOnStartup);
   }
 
-  if (patch.closeToTray !== undefined) {
-    settings = { ...settings, closeToTray: patch.closeToTray };
+  if (patch.closeToTray !== undefined || patch.startupMode !== undefined) {
+    settings = {
+      ...settings,
+      ...(patch.closeToTray !== undefined && { closeToTray: patch.closeToTray }),
+      ...(patch.startupMode !== undefined && { startupMode: patch.startupMode }),
+    };
     try {
       const file = settingsFile();
       mkdirSync(dirname(file), { recursive: true });

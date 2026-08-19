@@ -5,7 +5,14 @@ import { getSettings } from "../services/settings";
 import { destroyFlyout } from "./flyout-window";
 import { setMainWindow } from "./registry";
 
-export function createMainWindow(): BrowserWindow {
+interface MainWindowOptions {
+  /** false = create hidden (sign-in launch with startupMode "tray"). */
+  showOnReady?: boolean;
+}
+
+export function createMainWindow(
+  options: MainWindowOptions = {},
+): BrowserWindow {
   const window = new BrowserWindow({
     title: "TrayTune",
     width: 1000,
@@ -25,7 +32,7 @@ export function createMainWindow(): BrowserWindow {
   });
 
   window.on("ready-to-show", () => {
-    window.show();
+    if (options.showOnReady !== false) window.show();
   });
 
   // Close-to-tray (task 2.5): hide instead of closing unless the user turned

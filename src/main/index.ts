@@ -4,7 +4,7 @@ import { registerPlayerIpc } from "./ipc/player";
 import { registerSettingsIpc } from "./ipc/settings";
 import { registerSystemIpc } from "./ipc/system";
 import { markQuitting } from "./lifecycle";
-import { loadSettings } from "./services/settings";
+import { getSettings, loadSettings, STARTUP_ARG } from "./services/settings";
 import { createTray, destroyTray } from "./tray/tray";
 import { createMainWindow } from "./windows/main-window";
 
@@ -31,7 +31,16 @@ if (!gotSingleInstanceLock) {
     registerSettingsIpc();
     registerPlayerIpc();
     registerFlyoutIpc();
-    createMainWindow();
+
+    // Sign-in launches honor the startup-mode setting; manual launches always
+    // show the window.
+    const launchedAtStartup = process.argv.includes(STARTUP_ARG);
+    const startInTray =
+      launchedAtStartup && getSettings().startupMode === "tray";
+    if (startInTray) {
+      console.log("[main] launched at sign-in — starting in the tray");
+    }
+    createMainWindow({ showOnReady: !startInTray });
     createTray();
   });
 

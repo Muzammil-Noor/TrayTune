@@ -13,6 +13,9 @@ function sanitize(patch: unknown): Partial<AppSettings> {
     if (typeof record.runOnStartup === "boolean") {
       result.runOnStartup = record.runOnStartup;
     }
+    if (record.startupMode === "tray" || record.startupMode === "window") {
+      result.startupMode = record.startupMode;
+    }
   }
   return result;
 }

@@ -1,3 +1,4 @@
+import type { StartupMode } from "@shared/types";
 import type { ThemePreference } from "@/hooks/use-theme";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -12,11 +13,31 @@ interface SettingsDialogProps {
   closeToTray: boolean | null;
   /** null while settings are loading/unavailable. */
   runOnStartup: boolean | null;
+  /** null while settings are loading/unavailable. */
+  startupMode: StartupMode | null;
   onCloseToTrayChange: (value: boolean) => void;
   onRunOnStartupChange: (value: boolean) => void;
+  onStartupModeChange: (value: StartupMode) => void;
   onThemeChange: (preference: ThemePreference) => void;
   onClose: () => void;
 }
+
+const STARTUP_MODE_OPTIONS: {
+  value: StartupMode;
+  label: string;
+  title: string;
+}[] = [
+  {
+    value: "tray",
+    label: "Tray",
+    title: "Start hidden in the tray with the flyout ready",
+  },
+  {
+    value: "window",
+    label: "Window",
+    title: "Start with the main window open",
+  },
+];
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "System" },
@@ -32,8 +53,10 @@ export function SettingsDialog({
   usingWindowsAccent,
   closeToTray,
   runOnStartup,
+  startupMode,
   onCloseToTrayChange,
   onRunOnStartupChange,
+  onStartupModeChange,
   onThemeChange,
   onClose,
 }: SettingsDialogProps) {
@@ -99,6 +122,33 @@ export function SettingsDialog({
                 onChange={onRunOnStartupChange}
               />
             </div>
+            {runOnStartup === true && (
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-secondary">Startup behavior</span>
+                <div
+                  className="flex gap-2"
+                  role="radiogroup"
+                  aria-label="Startup behavior"
+                >
+                  {STARTUP_MODE_OPTIONS.map((option) => (
+                    <Button
+                      key={option.value}
+                      size="sm"
+                      role="radio"
+                      title={option.title}
+                      aria-checked={startupMode === option.value}
+                      variant={
+                        startupMode === option.value ? "accent" : "standard"
+                      }
+                      disabled={startupMode === null}
+                      onClick={() => onStartupModeChange(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       </div>
