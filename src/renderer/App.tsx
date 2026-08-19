@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Sidebar } from "./components/layout/Sidebar";
 import { TrackList } from "./components/library/TrackList";
 import { Player } from "./components/player/Player";
-import { SettingsDialog } from "./components/settings/SettingsDialog";
+import { SettingsPage } from "./components/settings/SettingsPage";
 import { useAccent } from "./hooks/use-accent";
 import { useAppSettings } from "./hooks/use-app-settings";
 import { useMockPlayer } from "./hooks/use-mock-player";
@@ -103,6 +103,22 @@ export default function App() {
     repeat,
   ]);
 
+  // The settings page takes over the whole window, Windows Settings-style.
+  if (settingsOpen) {
+    return (
+      <div className="flex h-full">
+        <SettingsPage
+          themePreference={theme.preference}
+          usingWindowsAccent={accent !== null}
+          settings={appSettings.settings}
+          onUpdate={appSettings.update}
+          onThemeChange={theme.setPreference}
+          onBack={() => setSettingsOpen(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full">
       <Sidebar
@@ -145,16 +161,6 @@ export default function App() {
           onCycleRepeat={player.cycleRepeat}
         />
       </main>
-
-      <SettingsDialog
-        open={settingsOpen}
-        themePreference={theme.preference}
-        usingWindowsAccent={accent !== null}
-        settings={appSettings.settings}
-        onUpdate={appSettings.update}
-        onThemeChange={theme.setPreference}
-        onClose={() => setSettingsOpen(false)}
-      />
     </div>
   );
 }

@@ -4,6 +4,7 @@
  */
 export const glyphs = {
   navButton: "\uE700",
+  back: "\uE72B",
   chevronDown: "\uE70D",
   chevronUp: "\uE70E",
   openInNewWindow: "\uE8A7",

@@ -11,6 +11,7 @@
  */
 
 :root {
+  color-scheme: light; /* native controls (select popups, etc.) match theme */
   --accent-base: #0067c0; /* used in light mode */
   --accent-light: #4da3e8; /* lightened variant used in dark mode */
   --accent: var(--accent-base);
@@ -38,6 +39,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --accent: var(--accent-light);
 
   --window: #202020;
