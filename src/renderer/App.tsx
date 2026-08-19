@@ -22,28 +22,86 @@ export default function App() {
     playerRef.current = player;
   }, [player]);
   useEffect(() => {
-    const unsubscribe = window.traytune?.player.onCommand((command) => {
+    const unsubscribe = window.traytune?.player.onAction((action) => {
       const current = playerRef.current;
-      if (command === "play-pause") current.togglePlay();
-      else if (command === "previous") current.previous();
-      else if (command === "next") current.next();
+      switch (action.type) {
+        case "play-pause":
+          current.togglePlay();
+          break;
+        case "previous":
+          current.previous();
+          break;
+        case "next":
+          current.next();
+          break;
+        case "toggle-shuffle":
+          current.toggleShuffle();
+          break;
+        case "cycle-repeat":
+          current.cycleRepeat();
+          break;
+        case "seek":
+          current.seek(action.position);
+          break;
+        case "play-track":
+          current.playTrack(action.trackId);
+          break;
+        case "select-playlist":
+          current.selectPlaylist(action.playlistId);
+          break;
+        case "remove-from-playlist":
+          if (current.selectedPlaylist) {
+            current.removeTrackFromPlaylist(
+              current.selectedPlaylist.id,
+              action.trackId,
+            );
+          }
+          break;
+        case "remove-from-library":
+          current.removeTrackFromLibrary(action.trackId);
+          break;
+      }
     });
     return unsubscribe;
   }, []);
 
-  // Keep the tray display in sync with the current track (task 2.8).
-  const { currentTrack, isPlaying } = player;
+  // Report the full player state so the tray display (task 2.8) and the
+  // flyout window stay in sync with this window's player.
+  const {
+    playlists,
+    selectedPlaylistId,
+    playlistTracks,
+    currentTrack,
+    isPlaying,
+    position,
+    shuffle,
+    repeat,
+  } = player;
   useEffect(() => {
-    window.traytune?.player.reportNowPlaying(
-      currentTrack
-        ? {
-            title: currentTrack.title,
-            artist: currentTrack.artist,
-            isPlaying,
-          }
-        : null,
-    );
-  }, [currentTrack, isPlaying]);
+    window.traytune?.player.reportState({
+      playlists: playlists.map((playlist) => ({
+        id: playlist.id,
+        name: playlist.name,
+        trackCount: playlist.trackIds.length,
+      })),
+      selectedPlaylistId,
+      tracks: playlistTracks,
+      currentTrack,
+      isPlaying,
+      position,
+      shuffle,
+      repeat,
+    });
+  }, [
+    playlists,
+    selectedPlaylistId,
+    playlistTracks,
+    currentTrack,
+    isPlaying,
+    position,
+    shuffle,
+    repeat,
+  ]);
 
   return (
     <div className="flex h-full">
