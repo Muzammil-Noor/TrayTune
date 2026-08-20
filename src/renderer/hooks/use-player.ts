@@ -6,19 +6,21 @@ import type {
   Track,
   TrackId,
 } from "@shared/types";
-import { mockPlaylists, mockTracks } from "@/mock/mock-data";
+import { useLibrary } from "./use-library";
 
 /**
- * All Phase 1 UI state over the mock library. Nothing here touches real audio
- * or the filesystem — Phases 3–5 replace this with the library/playlist
- * services and the central PlaybackManager behind the preload API.
+ * Player state over the real library (Phase 3). Tracks come from the main
+ * process's library store; a selectedPlaylistId of null means the Library
+ * view (all tracks). Playback itself is still simulated — Phase 4 puts the
+ * central PlaybackManager behind these same actions. Playlists remain
+ * renderer state until their store lands in Phase 5.
  */
-export function useMockPlayer() {
-  const [tracks, setTracks] = useState<Track[]>(mockTracks);
-  const [playlists, setPlaylists] = useState<Playlist[]>(mockPlaylists);
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<PlaylistId | null>(
-    mockPlaylists[0]?.id ?? null,
-  );
+export function usePlayer() {
+  const library = useLibrary();
+  const { tracks } = library;
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [selectedPlaylistId, setSelectedPlaylistId] =
+    useState<PlaylistId | null>(null);
   const [currentTrackId, setCurrentTrackId] = useState<TrackId | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -33,19 +35,24 @@ export function useMockPlayer() {
   const selectedPlaylist =
     playlists.find((playlist) => playlist.id === selectedPlaylistId) ?? null;
 
+  /** Tracks shown in the list: the whole library, or the selected playlist. */
   const playlistTracks = useMemo(
     () =>
       selectedPlaylist
         ? selectedPlaylist.trackIds
             .map((id) => trackMap.get(id))
             .filter((track): track is Track => track !== undefined)
-        : [],
-    [selectedPlaylist, trackMap],
+        : tracks,
+    [selectedPlaylist, trackMap, tracks],
   );
 
+  // The current track can disappear underneath us (removed from the library
+  // in another window). Deriving instead of storing makes that render as
+  // "stopped" immediately — no effect, no ghost playback.
   const currentTrack = currentTrackId
     ? (trackMap.get(currentTrackId) ?? null)
     : null;
+  const effectiveIsPlaying = isPlaying && currentTrack !== null;
 
   function playTrack(trackId: TrackId) {
     setCurrentTrackId(trackId);
@@ -101,13 +108,10 @@ export function useMockPlayer() {
   }
 
   function deletePlaylist(playlistId: PlaylistId) {
-    setPlaylists((prev) => {
-      const remaining = prev.filter((playlist) => playlist.id !== playlistId);
-      if (playlistId === selectedPlaylistId) {
-        setSelectedPlaylistId(remaining[0]?.id ?? null);
-      }
-      return remaining;
-    });
+    setPlaylists((prev) => prev.filter((playlist) => playlist.id !== playlistId));
+    if (playlistId === selectedPlaylistId) {
+      setSelectedPlaylistId(null); // fall back to the Library view
+    }
   }
 
   function removeTrackFromPlaylist(playlistId: PlaylistId, trackId: TrackId) {
@@ -125,7 +129,10 @@ export function useMockPlayer() {
   }
 
   function removeTrackFromLibrary(trackId: TrackId) {
-    setTracks((prev) => prev.filter((track) => track.id !== trackId));
+    // The main process owns the library; the change comes back through the
+    // library:changed broadcast. Playlist references are still renderer
+    // state, so clean them here (their store arrives in Phase 5).
+    library.removeTrack(trackId);
     setPlaylists((prev) =>
       prev.map((playlist) =>
         playlist.trackIds.includes(trackId)
@@ -137,11 +144,6 @@ export function useMockPlayer() {
           : playlist,
       ),
     );
-    if (trackId === currentTrackId) {
-      setCurrentTrackId(null);
-      setIsPlaying(false);
-      setPosition(0);
-    }
   }
 
   return {
@@ -149,9 +151,10 @@ export function useMockPlayer() {
     selectedPlaylist,
     selectedPlaylistId,
     playlistTracks,
+    libraryTrackCount: tracks.length,
     currentTrack,
     currentTrackId,
-    isPlaying,
+    isPlaying: effectiveIsPlaying,
     position,
     shuffle,
     repeat,
@@ -168,5 +171,6 @@ export function useMockPlayer() {
     deletePlaylist,
     removeTrackFromPlaylist,
     removeTrackFromLibrary,
+    addFilesToLibrary: library.addTracks,
   };
 }

@@ -5,7 +5,9 @@ import { resolve } from "path";
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    // music-metadata is pure ESM; excluding it from externalization lets
+    // Rollup bundle it into our CJS main bundle instead of require()-ing it.
+    plugins: [externalizeDepsPlugin({ exclude: ["music-metadata"] })],
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

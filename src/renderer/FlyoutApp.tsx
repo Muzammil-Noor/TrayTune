@@ -86,7 +86,7 @@ export default function FlyoutApp() {
     if (settings?.flyoutCollapseSongListOnPlay) setListTo(false);
   }
 
-  function handleSelectPlaylist(playlistId: PlaylistId) {
+  function handleSelectPlaylist(playlistId: PlaylistId | null) {
     send({ type: "select-playlist", playlistId });
     // Default to auto-closing while settings are still loading.
     if (settings?.flyoutCollapseSidebarOnSelect ?? true) setDrawer("closing");
@@ -142,7 +142,8 @@ export default function FlyoutApp() {
           {(listExpanded || listClosing) && (
             <div className="animate-in fade-in flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-l border-t border-stroke bg-surface duration-300">
               <TrackList
-                playlistName={selectedPlaylist?.name}
+                title={selectedPlaylist?.name ?? "Library"}
+                isLibrary={state.selectedPlaylistId === null}
                 tracks={state.tracks}
                 currentTrackId={state.currentTrack?.id ?? null}
                 onPlay={handlePlay}
@@ -167,6 +168,7 @@ export default function FlyoutApp() {
         <PlaylistDrawer
           playlists={state.playlists}
           selectedPlaylistId={state.selectedPlaylistId}
+          libraryTrackCount={state.libraryTrackCount}
           closing={drawer === "closing"}
           onSelect={handleSelectPlaylist}
           onClose={() => setDrawer("closing")}

@@ -1,7 +1,7 @@
 import { app } from "electron";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
+import { join } from "path";
 import type { AppSettings, StartupMode } from "../../shared/types";
+import { readJsonFile, writeJsonFileAtomic } from "./store";
 
 /** The JSON-persisted subset. `runOnStartup` lives in the OS login-item
  * registration instead (Task Manager and the registry stay the truth). */
@@ -67,24 +67,16 @@ function applyRunOnStartup(enabled: boolean): void {
  * A corrupted file must never crash startup (PRD §64). */
 export function loadSettings(): void {
   settings = { ...DEFAULT_SETTINGS };
-  try {
-    // Strip a UTF-8 BOM — editors and tools may add one, and JSON.parse rejects it.
-    const raw = readFileSync(settingsFile(), "utf8").replace(/^\uFEFF/, "");
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed === "object" && parsed !== null) {
-      const record = parsed as Record<string, unknown>;
-      for (const key of BOOLEAN_KEYS) {
-        if (typeof record[key] === "boolean") {
-          settings[key] = record[key];
-        }
-      }
-      if (record.startupMode === "tray" || record.startupMode === "window") {
-        settings.startupMode = record.startupMode;
+  const parsed = readJsonFile(settingsFile());
+  if (typeof parsed === "object" && parsed !== null) {
+    const record = parsed as Record<string, unknown>;
+    for (const key of BOOLEAN_KEYS) {
+      if (typeof record[key] === "boolean") {
+        settings[key] = record[key];
       }
     }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.error("[main] failed to load settings, using defaults:", error);
+    if (record.startupMode === "tray" || record.startupMode === "window") {
+      settings.startupMode = record.startupMode;
     }
   }
 }
@@ -110,16 +102,7 @@ export function updateSettings(patch: Partial<AppSettings>): AppSettings {
 
   if (Object.keys(persistedPatch).length > 0) {
     settings = { ...settings, ...persistedPatch };
-    try {
-      const file = settingsFile();
-      mkdirSync(dirname(file), { recursive: true });
-      // Write-then-rename so a crash mid-write cannot corrupt the file.
-      const tmp = `${file}.tmp`;
-      writeFileSync(tmp, JSON.stringify(settings, null, 2), "utf8");
-      renameSync(tmp, file);
-    } catch (error) {
-      console.error("[main] failed to persist settings:", error);
-    }
+    writeJsonFileAtomic(settingsFile(), settings);
   }
 
   return getSettings();

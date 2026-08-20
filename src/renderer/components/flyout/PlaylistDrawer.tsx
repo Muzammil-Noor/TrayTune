@@ -5,10 +5,12 @@ import { cn } from "@/lib/utils";
 
 interface PlaylistDrawerProps {
   playlists: PlayerStateSnapshot["playlists"];
+  /** null = the Library view (all tracks). */
   selectedPlaylistId: PlaylistId | null;
+  libraryTrackCount: number;
   /** True while the exit animation plays; onExited fires when it finishes. */
   closing: boolean;
-  onSelect: (playlistId: PlaylistId) => void;
+  onSelect: (playlistId: PlaylistId | null) => void;
   onClose: () => void;
   onExited: () => void;
 }
@@ -19,6 +21,7 @@ interface PlaylistDrawerProps {
 export function PlaylistDrawer({
   playlists,
   selectedPlaylistId,
+  libraryTrackCount,
   closing,
   onSelect,
   onClose,
@@ -48,10 +51,35 @@ export function PlaylistDrawer({
         }}
       >
         {/* pt clears the floating playlists button in the flyout header */}
-        <p className="px-4 pb-1 pt-11 text-xs font-medium uppercase tracking-wide text-secondary">
+        <div className="px-2 pt-11">
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className={cn(
+              "relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
+              selectedPlaylistId === null
+                ? "bg-subtle font-medium"
+                : "hover:bg-subtle active:bg-subtle-strong",
+            )}
+          >
+            {selectedPlaylistId === null && (
+              <span className="absolute left-0 top-1/2 h-4 w-0.75 -translate-y-1/2 rounded-full bg-accent" />
+            )}
+            <Icon glyph={glyphs.library} className="text-sm text-secondary" />
+            <span className="min-w-0 flex-1 truncate">Library</span>
+            <span className="text-xs tabular-nums text-secondary">
+              {libraryTrackCount}
+            </span>
+          </button>
+        </div>
+
+        <p className="px-4 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-secondary">
           Playlists
         </p>
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-1">
+          {playlists.length === 0 && (
+            <p className="px-3 py-2 text-sm text-tertiary">No playlists yet.</p>
+          )}
           {playlists.map((playlist) => {
             const selected = playlist.id === selectedPlaylistId;
             return (

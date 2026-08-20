@@ -1,8 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
+  AddTracksResult,
   AppSettings,
   PlayerAction,
   PlayerStateSnapshot,
+  Track,
+  TrackMetadataPatch,
 } from "../shared/types";
 
 // Minimal typed surface for the renderer. Feature APIs (library.*, playlist.*,
@@ -29,6 +32,26 @@ const api = {
         callback(settings);
       ipcRenderer.on("settings:changed", listener);
       return () => ipcRenderer.removeListener("settings:changed", listener);
+    },
+  },
+  library: {
+    getTracks: (): Promise<Track[]> => ipcRenderer.invoke("library:get-tracks"),
+    /** Without paths: opens the file picker. With paths (drag-and-drop later):
+     * imports them directly. */
+    addTracks: (paths?: string[]): Promise<AddTracksResult> =>
+      ipcRenderer.invoke("library:add-tracks", paths),
+    removeTrack: (trackId: string): Promise<boolean> =>
+      ipcRenderer.invoke("library:remove-track", trackId),
+    updateTrack: (
+      trackId: string,
+      patch: TrackMetadataPatch,
+    ): Promise<Track | null> =>
+      ipcRenderer.invoke("library:update-track", trackId, patch),
+    /** Fires in every window with the full track list after any change. */
+    onChanged: (callback: (tracks: Track[]) => void): (() => void) => {
+      const listener = (_event: unknown, tracks: Track[]) => callback(tracks);
+      ipcRenderer.on("library:changed", listener);
+      return () => ipcRenderer.removeListener("library:changed", listener);
     },
   },
   player: {

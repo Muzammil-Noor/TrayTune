@@ -5,11 +5,11 @@ import { Player } from "./components/player/Player";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { useAccent } from "./hooks/use-accent";
 import { useAppSettings } from "./hooks/use-app-settings";
-import { useMockPlayer } from "./hooks/use-mock-player";
+import { usePlayer } from "./hooks/use-player";
 import { useTheme } from "./hooks/use-theme";
 
 export default function App() {
-  const player = useMockPlayer();
+  const player = usePlayer();
   const theme = useTheme();
   const accent = useAccent();
   const appSettings = useAppSettings();
@@ -71,6 +71,7 @@ export default function App() {
     playlists,
     selectedPlaylistId,
     playlistTracks,
+    libraryTrackCount,
     currentTrack,
     isPlaying,
     position,
@@ -85,6 +86,7 @@ export default function App() {
         trackCount: playlist.trackIds.length,
       })),
       selectedPlaylistId,
+      libraryTrackCount,
       tracks: playlistTracks,
       currentTrack,
       isPlaying,
@@ -96,6 +98,7 @@ export default function App() {
     playlists,
     selectedPlaylistId,
     playlistTracks,
+    libraryTrackCount,
     currentTrack,
     isPlaying,
     position,
@@ -124,6 +127,7 @@ export default function App() {
       <Sidebar
         playlists={player.playlists}
         selectedPlaylistId={player.selectedPlaylistId}
+        libraryTrackCount={player.libraryTrackCount}
         onSelect={player.selectPlaylist}
         onAdd={player.addPlaylist}
         onRename={player.renamePlaylist}
@@ -135,7 +139,8 @@ export default function App() {
           rounded top-left corner sitting on the mica-toned window background. */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-l border-t border-stroke bg-surface">
         <TrackList
-          playlistName={player.selectedPlaylist?.name}
+          title={player.selectedPlaylist?.name ?? "Library"}
+          isLibrary={player.selectedPlaylist === null}
           tracks={player.playlistTracks}
           currentTrackId={player.currentTrackId}
           onPlay={player.playTrack}
@@ -145,6 +150,7 @@ export default function App() {
             }
           }}
           onRemoveFromLibrary={player.removeTrackFromLibrary}
+          onAddFiles={player.addFilesToLibrary}
         />
         <Player
           currentTrack={player.currentTrack}

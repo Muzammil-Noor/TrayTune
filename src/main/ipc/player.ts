@@ -35,8 +35,10 @@ function sanitizeAction(action: unknown): PlayerAction | null {
         ? { type: record.type, trackId: record.trackId }
         : null;
     case "select-playlist":
-      return typeof record.playlistId === "string" &&
-        record.playlistId.length <= MAX_ID_LENGTH
+      // null selects the Library view (all tracks).
+      return record.playlistId === null ||
+        (typeof record.playlistId === "string" &&
+          record.playlistId.length <= MAX_ID_LENGTH)
         ? { type: "select-playlist", playlistId: record.playlistId }
         : null;
     default:

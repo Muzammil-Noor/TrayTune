@@ -1,9 +1,11 @@
 import { app, BrowserWindow } from "electron";
 import { registerFlyoutIpc } from "./ipc/flyout";
+import { registerLibraryIpc } from "./ipc/library";
 import { registerPlayerIpc } from "./ipc/player";
 import { registerSettingsIpc } from "./ipc/settings";
 import { registerSystemIpc } from "./ipc/system";
 import { markQuitting } from "./lifecycle";
+import { loadLibrary } from "./services/library";
 import { getSettings, loadSettings, STARTUP_ARG } from "./services/settings";
 import { createTray, destroyTray } from "./tray/tray";
 import { createMainWindow } from "./windows/main-window";
@@ -27,8 +29,10 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     app.setAppUserModelId("com.traytune.app");
     loadSettings();
+    loadLibrary();
     registerSystemIpc();
     registerSettingsIpc();
+    registerLibraryIpc();
     registerPlayerIpc();
     registerFlyoutIpc();
 

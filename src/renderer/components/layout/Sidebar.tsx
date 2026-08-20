@@ -11,8 +11,10 @@ import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   playlists: Playlist[];
+  /** null = the Library view (all tracks). */
   selectedPlaylistId: PlaylistId | null;
-  onSelect: (playlistId: PlaylistId) => void;
+  libraryTrackCount: number;
+  onSelect: (playlistId: PlaylistId | null) => void;
   onAdd: (name: string) => void;
   onRename: (playlistId: PlaylistId, name: string) => void;
   onDelete: (playlistId: PlaylistId) => void;
@@ -29,6 +31,7 @@ type DialogState =
 export function Sidebar({
   playlists,
   selectedPlaylistId,
+  libraryTrackCount,
   onSelect,
   onAdd,
   onRename,
@@ -58,6 +61,29 @@ export function Sidebar({
       <header className="px-5 pb-2 pt-5">
         <h1 className="text-base font-semibold">TrayTune</h1>
       </header>
+
+      {/* The whole library — always present, selected when no playlist is. */}
+      <div className="px-2 pt-1">
+        <button
+          type="button"
+          onClick={() => onSelect(null)}
+          className={cn(
+            "relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
+            selectedPlaylistId === null
+              ? "bg-subtle font-medium"
+              : "hover:bg-subtle active:bg-subtle-strong",
+          )}
+        >
+          {selectedPlaylistId === null && (
+            <span className="absolute left-0 top-1/2 h-4 w-0.75 -translate-y-1/2 rounded-full bg-accent" />
+          )}
+          <Icon glyph={glyphs.library} className="text-sm text-secondary" />
+          <span className="min-w-0 flex-1 truncate">Library</span>
+          <span className="text-xs tabular-nums text-secondary">
+            {libraryTrackCount}
+          </span>
+        </button>
+      </div>
 
       <p className="px-5 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-secondary">
         Playlists

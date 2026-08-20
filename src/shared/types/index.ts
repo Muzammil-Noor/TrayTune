@@ -25,6 +25,33 @@ export interface Playlist {
   updatedAt: number;
 }
 
+/** The metadata fields library.updateTrack may change. Identity and file
+ * fields (id, filePath, createdAt) are never patchable over IPC. */
+export type TrackMetadataPatch = Partial<
+  Pick<
+    Track,
+    | "title"
+    | "artist"
+    | "album"
+    | "albumArtist"
+    | "genre"
+    | "year"
+    | "trackNumber"
+  >
+>;
+
+/** Outcome of a library import (PRD §51: per-file failures must not block
+ * the rest of the batch). */
+export interface AddTracksResult {
+  added: Track[];
+  /** Files skipped because their exact path is already in the library. */
+  duplicateCount: number;
+  /** Files that could not be imported at all. */
+  failedCount: number;
+  /** True when the user dismissed the file picker. */
+  canceled: boolean;
+}
+
 export type RepeatMode = "off" | "all" | "one";
 
 /** How TrayTune presents itself when launched at Windows sign-in:
@@ -57,7 +84,8 @@ export type PlayerAction =
   | { type: "cycle-repeat" }
   | { type: "seek"; position: number }
   | { type: "play-track"; trackId: TrackId }
-  | { type: "select-playlist"; playlistId: PlaylistId }
+  /** null selects the Library view (all tracks). */
+  | { type: "select-playlist"; playlistId: PlaylistId | null }
   | { type: "remove-from-playlist"; trackId: TrackId }
   | { type: "remove-from-library"; trackId: TrackId };
 
@@ -66,8 +94,11 @@ export type PlayerAction =
  * playback state between windows). */
 export interface PlayerStateSnapshot {
   playlists: { id: PlaylistId; name: string; trackCount: number }[];
+  /** null means the Library view (all tracks) is selected. */
   selectedPlaylistId: PlaylistId | null;
-  /** Resolved tracks of the selected playlist, in playlist order. */
+  /** Total library size, for the flyout's Library entry. */
+  libraryTrackCount: number;
+  /** Resolved tracks of the selected playlist (or the whole library), in order. */
   tracks: Track[];
   currentTrack: Track | null;
   isPlaying: boolean;

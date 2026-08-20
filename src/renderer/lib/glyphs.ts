@@ -23,6 +23,7 @@ export const glyphs = {
   repeatOne: "\uE8ED",
   repeatAll: "\uE8EE",
   bulletedList: "\uE8FD",
+  library: "\uE8F1",
   musicAlbum: "\uE93C",
   musicNote: "\uEC4F",
 } as const;
