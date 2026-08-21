@@ -7,6 +7,7 @@ import { useAccent } from "./hooks/use-accent";
 import { useAppSettings } from "./hooks/use-app-settings";
 import { usePlayer } from "./hooks/use-player";
 import { useTheme } from "./hooks/use-theme";
+import { getPlaybackManager } from "./services/playback-manager";
 
 export default function App() {
   const player = usePlayer();
@@ -14,6 +15,17 @@ export default function App() {
   const accent = useAccent();
   const appSettings = useAppSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // The persisted volume applies once at startup; afterwards the engine is
+  // the live source and slider commits write back to settings.
+  const volumeInitialized = useRef(false);
+  const settingsVolume = appSettings.settings?.volume;
+  useEffect(() => {
+    if (!volumeInitialized.current && settingsVolume !== undefined) {
+      volumeInitialized.current = true;
+      getPlaybackManager().setVolume(settingsVolume);
+    }
+  }, [settingsVolume]);
 
   // Tray menu (and later media keys) drive the player through main-process
   // commands. The ref keeps the subscription stable across renders.
@@ -76,6 +88,7 @@ export default function App() {
     isPlaying,
     position,
     duration,
+    playbackError,
     shuffle,
     repeat,
   } = player;
@@ -95,6 +108,7 @@ export default function App() {
       duration,
       shuffle,
       repeat,
+      error: playbackError,
     });
   }, [
     playlists,
@@ -105,6 +119,7 @@ export default function App() {
     isPlaying,
     position,
     duration,
+    playbackError,
     shuffle,
     repeat,
   ]);
@@ -162,6 +177,9 @@ export default function App() {
           isPlaying={player.isPlaying}
           position={player.position}
           duration={player.duration}
+          playbackError={player.playbackError}
+          volume={player.volume}
+          muted={player.muted}
           shuffle={player.shuffle}
           repeat={player.repeat}
           canSkip={player.playlistTracks.length > 0}
@@ -169,6 +187,9 @@ export default function App() {
           onPrevious={player.previous}
           onNext={player.next}
           onSeek={player.seek}
+          onVolumeChange={player.setVolume}
+          onVolumeCommit={(volume) => appSettings.update({ volume })}
+          onToggleMute={player.toggleMute}
           onToggleShuffle={player.toggleShuffle}
           onCycleRepeat={player.cycleRepeat}
         />

@@ -4,23 +4,34 @@ import { glyphs } from "@/lib/glyphs";
 
 interface TrackInfoProps {
   track: Track | null;
+  /** Non-fatal playback failure shown in place of the artist line (4.16). */
+  error?: string | null;
 }
 
 /** Current track title/artist/album with an artwork placeholder (task 1.10).
  * Real artwork arrives with metadata extraction in Phase 3. */
-export function TrackInfo({ track }: TrackInfoProps) {
+export function TrackInfo({ track, error }: TrackInfoProps) {
   return (
     <div className="flex min-w-0 items-center gap-3">
       <div className="flex size-12 shrink-0 items-center justify-center rounded-md bg-subtle-strong">
-        <Icon glyph={glyphs.musicAlbum} className="text-lg text-tertiary" />
+        <Icon
+          glyph={error ? glyphs.warning : glyphs.musicAlbum}
+          className={
+            error ? "text-lg text-danger" : "text-lg text-tertiary"
+          }
+        />
       </div>
       {track ? (
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{track.title}</p>
-          <p className="truncate text-xs text-secondary">
-            {track.artist ?? "Unknown artist"}
-            {track.album ? ` · ${track.album}` : ""}
-          </p>
+          {error ? (
+            <p className="truncate text-xs text-danger">{error}</p>
+          ) : (
+            <p className="truncate text-xs text-secondary">
+              {track.artist ?? "Unknown artist"}
+              {track.album ? ` · ${track.album}` : ""}
+            </p>
+          )}
         </div>
       ) : (
         <p className="truncate text-sm text-tertiary">Nothing playing</p>

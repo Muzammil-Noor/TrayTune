@@ -3,6 +3,7 @@ import { PlaybackControls } from "./PlaybackControls";
 import { PlaybackModeControls } from "./PlaybackModeControls";
 import { SeekBar } from "./SeekBar";
 import { TrackInfo } from "./TrackInfo";
+import { VolumeControl } from "./VolumeControl";
 
 interface PlayerProps {
   currentTrack: Track | null;
@@ -10,6 +11,10 @@ interface PlayerProps {
   position: number;
   /** Real duration from the audio engine; null until known. */
   duration: number | null;
+  /** Non-fatal playback failure for the current track. */
+  playbackError: string | null;
+  volume: number;
+  muted: boolean;
   shuffle: boolean;
   repeat: RepeatMode;
   canSkip: boolean;
@@ -17,6 +22,9 @@ interface PlayerProps {
   onPrevious: () => void;
   onNext: () => void;
   onSeek: (position: number) => void;
+  onVolumeChange: (volume: number) => void;
+  onVolumeCommit: (volume: number) => void;
+  onToggleMute: () => void;
   onToggleShuffle: () => void;
   onCycleRepeat: () => void;
 }
@@ -29,6 +37,9 @@ export function Player({
   isPlaying,
   position,
   duration,
+  playbackError,
+  volume,
+  muted,
   shuffle,
   repeat,
   canSkip,
@@ -36,12 +47,15 @@ export function Player({
   onPrevious,
   onNext,
   onSeek,
+  onVolumeChange,
+  onVolumeCommit,
+  onToggleMute,
   onToggleShuffle,
   onCycleRepeat,
 }: PlayerProps) {
   return (
     <footer className="grid shrink-0 grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] items-center gap-4 border-t border-stroke bg-surface-secondary px-4 py-3">
-      <TrackInfo track={currentTrack} />
+      <TrackInfo track={currentTrack} error={playbackError} />
 
       <div className="flex w-full flex-col items-center gap-1.5 justify-self-center">
         <PlaybackControls
@@ -59,7 +73,14 @@ export function Player({
         />
       </div>
 
-      <div className="justify-self-end">
+      <div className="flex items-center gap-2 justify-self-end">
+        <VolumeControl
+          volume={volume}
+          muted={muted}
+          onVolumeChange={onVolumeChange}
+          onVolumeCommit={onVolumeCommit}
+          onToggleMute={onToggleMute}
+        />
         <PlaybackModeControls
           shuffle={shuffle}
           repeat={repeat}

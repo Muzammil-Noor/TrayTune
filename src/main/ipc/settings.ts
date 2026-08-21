@@ -22,6 +22,9 @@ function sanitize(patch: unknown): Partial<AppSettings> {
     if (record.startupMode === "tray" || record.startupMode === "window") {
       result.startupMode = record.startupMode;
     }
+    if (typeof record.volume === "number" && Number.isFinite(record.volume)) {
+      result.volume = Math.min(Math.max(record.volume, 0), 1);
+    }
   }
   return result;
 }

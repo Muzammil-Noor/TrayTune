@@ -10,6 +10,8 @@ interface PersistedSettings {
   startupMode: StartupMode;
   flyoutCollapseSidebarOnSelect: boolean;
   flyoutCollapseSongListOnPlay: boolean;
+  /** Playback volume, 0..1 (PRD §35 "Default volume"). */
+  volume: number;
 }
 
 const DEFAULT_SETTINGS: PersistedSettings = {
@@ -17,7 +19,14 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   startupMode: "tray",
   flyoutCollapseSidebarOnSelect: true,
   flyoutCollapseSongListOnPlay: false,
+  volume: 1,
 };
+
+function sanitizeVolume(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(Math.max(value, 0), 1)
+    : null;
+}
 
 const BOOLEAN_KEYS = [
   "closeToTray",
@@ -78,6 +87,8 @@ export function loadSettings(): void {
     if (record.startupMode === "tray" || record.startupMode === "window") {
       settings.startupMode = record.startupMode;
     }
+    const volume = sanitizeVolume(record.volume);
+    if (volume !== null) settings.volume = volume;
   }
 }
 
@@ -98,6 +109,10 @@ export function updateSettings(patch: Partial<AppSettings>): AppSettings {
   }
   if (patch.startupMode !== undefined) {
     persistedPatch.startupMode = patch.startupMode;
+  }
+  const volume = sanitizeVolume(patch.volume);
+  if (volume !== null) {
+    persistedPatch.volume = volume;
   }
 
   if (Object.keys(persistedPatch).length > 0) {

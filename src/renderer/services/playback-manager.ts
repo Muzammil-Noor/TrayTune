@@ -1,10 +1,17 @@
-import type { Track, TrackId } from "@shared/types";
+import type { RepeatMode, Track, TrackId } from "@shared/types";
 
 /**
  * Central playback engine (PRD §29, task 4.1): owns the html Audio element,
  * the playback queue, and every transport operation — load, play, pause,
- * stop, seek, next, previous, setVolume, getState. UI layers subscribe to
- * state snapshots and call methods; nothing else touches the audio element.
+ * stop, seek, next, previous, setVolume, getState — plus the shuffle and
+ * repeat policy (tasks 4.11–4.13). UI layers subscribe to state snapshots
+ * and call methods; nothing else touches the audio element.
+ *
+ * Queue model (PRD §30): `queue` keeps the tracks in the order they were
+ * played from (a snapshot of the view — playlist data is never reordered);
+ * `order` is the play order over it (identity, or shuffled with the current
+ * track first) and `cursor` walks `order`. Shuffle only ever rewrites
+ * `order`, which is what makes it reversible and non-destructive.
  *
  * Runs in the main window's renderer: that window is the app's player-state
  * owner (see player-bus in main) and stays alive in the tray, so audio
@@ -22,6 +29,9 @@ export interface PlaybackState {
   duration: number | null;
   /** 0..1 */
   volume: number;
+  muted: boolean;
+  shuffle: boolean;
+  repeat: RepeatMode;
   /** Non-fatal failure playing the current track (PRD §45). */
   error: string | null;
 }
@@ -35,9 +45,16 @@ const PREVIOUS_RESTARTS_AFTER_SECONDS = 3;
 export class PlaybackManager {
   private audio = new Audio();
   private queue: Track[] = [];
-  private index = -1;
+  /** Play order: indices into `queue`. Identity, or shuffled. */
+  private order: number[] = [];
+  /** Position within `order`; -1 when nothing is loaded. */
+  private cursor = -1;
+  private shuffleEnabled = false;
+  private repeat: RepeatMode = "off";
   private listeners = new Set<() => void>();
   private error: string | null = null;
+  /** Consecutive failed tracks — bounds the error auto-skip (PRD §45). */
+  private errorStreak = 0;
   /** Cached immutable snapshot — required by useSyncExternalStore. */
   private state: PlaybackState = {
     track: null,
@@ -45,6 +62,9 @@ export class PlaybackManager {
     position: 0,
     duration: null,
     volume: 1,
+    muted: false,
+    shuffle: false,
+    repeat: "off",
     error: null,
   };
 
@@ -62,13 +82,14 @@ export class PlaybackManager {
     ]) {
       this.audio.addEventListener(event, emit);
     }
-    this.audio.addEventListener("ended", () => this.handleEnded());
-    this.audio.addEventListener("error", () => {
-      // Deliberately clearing src also fires an error — that one is not news.
-      if (!this.audio.src) return;
-      this.error = "Couldn't play this file.";
-      this.emit();
+    this.audio.addEventListener("playing", () => {
+      // Something is audibly playing — any earlier failure is history.
+      this.errorStreak = 0;
+      this.error = null;
+      emit();
     });
+    this.audio.addEventListener("ended", () => this.handleEnded());
+    this.audio.addEventListener("error", () => this.handleError());
   }
 
   /** Both are stable references for useSyncExternalStore. */
@@ -84,7 +105,9 @@ export class PlaybackManager {
   playQueue(tracks: Track[], index: number): void {
     if (index < 0 || index >= tracks.length) return;
     this.queue = [...tracks];
-    this.playAt(index);
+    this.errorStreak = 0;
+    this.rebuildOrder(index);
+    this.playAtCursor();
   }
 
   play(): void {
@@ -110,8 +133,10 @@ export class PlaybackManager {
     this.audio.removeAttribute("src");
     this.audio.load();
     this.queue = [];
-    this.index = -1;
+    this.order = [];
+    this.cursor = -1;
     this.error = null;
+    this.errorStreak = 0;
     this.emit();
   }
 
@@ -126,80 +151,173 @@ export class PlaybackManager {
 
   setVolume(volume: number): void {
     this.audio.volume = Math.min(Math.max(volume, 0), 1);
+    if (this.audio.volume > 0) this.audio.muted = false;
   }
 
-  /** Task 4.6 — on the last track there is nowhere to go: stop at the end.
-   * Repeat modes change this in tasks 4.11/4.12. */
+  toggleMute(): void {
+    this.audio.muted = !this.audio.muted;
+    this.emit(); // `muted` has no dedicated media event on all paths
+  }
+
+  /** Task 4.6/4.12 — at the queue's end, Repeat Playlist wraps to the start;
+   * otherwise playback stops there. */
   next(): void {
-    if (this.index + 1 < this.queue.length) {
-      this.playAt(this.index + 1);
+    if (this.cursor + 1 < this.order.length) {
+      this.cursor += 1;
+      this.playAtCursor();
+    } else if (this.repeat === "all" && this.order.length > 0) {
+      this.cursor = 0;
+      this.playAtCursor();
     } else {
       this.stopAtEnd();
     }
   }
 
   /** Task 4.5 — restart the current track when it has really started;
-   * otherwise go back, and on the first track restart it (nowhere earlier). */
+   * otherwise go back. On the first track: wrap when repeating the
+   * playlist, else restart (nowhere earlier to go). */
   previous(): void {
-    if (
-      this.audio.currentTime > PREVIOUS_RESTARTS_AFTER_SECONDS ||
-      this.index <= 0
-    ) {
+    if (this.audio.currentTime > PREVIOUS_RESTARTS_AFTER_SECONDS) {
       this.seek(0);
+    } else if (this.cursor > 0) {
+      this.cursor -= 1;
+      this.playAtCursor();
+    } else if (this.repeat === "all" && this.order.length > 1) {
+      this.cursor = this.order.length - 1;
+      this.playAtCursor();
     } else {
-      this.playAt(this.index - 1);
+      this.seek(0);
     }
   }
 
+  /** Task 4.13 — flips shuffle by rewriting the play order around the
+   * current track, which keeps playing untouched (PRD §10.6). */
+  toggleShuffle(): void {
+    this.shuffleEnabled = !this.shuffleEnabled;
+    this.rebuildOrder(this.currentQueueIndex());
+    this.emit();
+  }
+
+  /** Tasks 4.11/4.12 — takes effect on the next track boundary. */
+  setRepeat(mode: RepeatMode): void {
+    this.repeat = mode;
+    this.emit();
+  }
+
   /** The library changed: stop if the playing track was removed, and drop
-   * removed tracks from the queue so next/previous never reach them. */
+   * removed tracks from queue and play order (preserving the order walked
+   * so far) so next/previous never reach them. */
   syncWithLibrary(validIds: ReadonlySet<TrackId>): void {
-    const current = this.queue[this.index];
+    const current = this.queue[this.order[this.cursor]];
     if (current && !validIds.has(current.id)) {
       this.stop();
       return;
     }
-    if (this.queue.some((track) => !validIds.has(track.id))) {
-      this.queue = this.queue.filter((track) => validIds.has(track.id));
-      this.index = current
-        ? this.queue.findIndex((track) => track.id === current.id)
-        : -1;
-      this.emit();
-    }
+    if (!this.queue.some((track) => !validIds.has(track.id))) return;
+
+    const indexMap = new Map<number, number>();
+    const nextQueue: Track[] = [];
+    this.queue.forEach((track, index) => {
+      if (validIds.has(track.id)) {
+        indexMap.set(index, nextQueue.length);
+        nextQueue.push(track);
+      }
+    });
+    const nextOrder: number[] = [];
+    let nextCursor = -1;
+    this.order.forEach((queueIndex, position) => {
+      const mapped = indexMap.get(queueIndex);
+      if (mapped !== undefined) {
+        if (position === this.cursor) nextCursor = nextOrder.length;
+        nextOrder.push(mapped);
+      }
+    });
+    this.queue = nextQueue;
+    this.order = nextOrder;
+    this.cursor = nextCursor;
+    this.emit();
   }
 
-  private playAt(index: number): void {
-    const track = this.queue[index];
+  private currentQueueIndex(): number | null {
+    return this.cursor >= 0 ? (this.order[this.cursor] ?? null) : null;
+  }
+
+  /** Builds `order` for the current shuffle setting. `anchor` (a queue
+   * index) plays first — the just-clicked or currently playing track. */
+  private rebuildOrder(anchor: number | null): void {
+    const indices = this.queue.map((_, index) => index);
+    if (!this.shuffleEnabled) {
+      this.order = indices;
+      this.cursor = anchor ?? -1;
+      return;
+    }
+    const rest = indices.filter((index) => index !== anchor);
+    // Fisher–Yates
+    for (let i = rest.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [rest[i], rest[j]] = [rest[j], rest[i]];
+    }
+    this.order = anchor !== null ? [anchor, ...rest] : rest;
+    this.cursor = anchor !== null ? 0 : -1;
+  }
+
+  private playAtCursor(): void {
+    const track = this.queue[this.order[this.cursor]];
     if (!track) return;
-    this.index = index;
     this.error = null;
     this.audio.src = AUDIO_URL_PREFIX + encodeURIComponent(track.id);
     this.play();
     this.emit();
   }
 
-  /** Task 4.10 — a finished track advances automatically; the queue's last
-   * track ends playback (repeat "off" behavior, PRD §10.7). */
+  /** Task 4.10/4.11 — Repeat One replays the finished track; otherwise
+   * advance (Repeat Playlist wraps, off stops at the end). PRD §56. */
   private handleEnded(): void {
-    this.next();
+    if (this.repeat === "one" && this.audio.src) {
+      this.seek(0);
+      this.play();
+    } else {
+      this.next();
+    }
+  }
+
+  /** Task 4.16 — a track that cannot play is an error state, not a crash:
+   * report it and move on to the next track, but give up after one full
+   * round of failures so two broken files cannot ping-pong forever. */
+  private handleError(): void {
+    if (!this.audio.src) return; // deliberately clearing src also fires error
+    this.error = "Couldn't play this file.";
+    this.errorStreak += 1;
+    if (this.errorStreak < this.order.length && this.cursor >= 0) {
+      this.next();
+      // next()/stopAtEnd cleared it, but the listener should keep seeing the
+      // failure until something actually plays.
+      this.error = "Couldn't play this file.";
+    }
+    this.emit();
   }
 
   /** End of the queue: keep the last track loaded and visible, paused at the
    * start, instead of tearing the player down. */
   private stopAtEnd(): void {
     this.audio.pause();
-    if (this.audio.src) this.audio.currentTime = 0;
+    if (this.audio.src && !Number.isNaN(this.audio.duration)) {
+      this.audio.currentTime = 0;
+    }
     this.emit();
   }
 
   private emit(): void {
     const duration = this.audio.duration;
     this.state = {
-      track: this.queue[this.index] ?? null,
+      track: this.queue[this.order[this.cursor]] ?? null,
       isPlaying: !this.audio.paused && !this.audio.ended,
       position: this.audio.currentTime,
       duration: Number.isFinite(duration) && duration > 0 ? duration : null,
       volume: this.audio.volume,
+      muted: this.audio.muted,
+      shuffle: this.shuffleEnabled,
+      repeat: this.repeat,
       error: this.error,
     };
     for (const listener of this.listeners) listener();

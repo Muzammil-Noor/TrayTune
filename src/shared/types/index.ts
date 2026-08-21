@@ -75,6 +75,8 @@ export interface AppSettings {
   flyoutCollapseSidebarOnSelect: boolean;
   /** Flyout: collapse the song list back to compact mode after picking a song. */
   flyoutCollapseSongListOnPlay: boolean;
+  /** Playback volume, 0..1. Persisted so it survives restarts (PRD §35). */
+  volume: number;
 }
 
 /** Player actions that can originate outside the main window (tray menu,
@@ -111,4 +113,6 @@ export interface PlayerStateSnapshot {
   duration: number | null;
   shuffle: boolean;
   repeat: RepeatMode;
+  /** Non-fatal playback failure for the current track, or null. */
+  error: string | null;
 }

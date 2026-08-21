@@ -14,7 +14,7 @@ export function FlyoutPlayer({ state, onAction }: FlyoutPlayerProps) {
   return (
     <footer className="flex shrink-0 flex-col gap-1.5 border-t border-stroke bg-surface-secondary px-4 pb-3 pt-2">
       <div className="flex items-center justify-between gap-2">
-        <TrackInfo track={state.currentTrack} />
+        <TrackInfo track={state.currentTrack} error={state.error} />
         <PlaybackModeControls
           shuffle={state.shuffle}
           repeat={state.repeat}

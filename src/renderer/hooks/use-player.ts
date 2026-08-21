@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type { PlaylistId, RepeatMode, Track, TrackId } from "@shared/types";
+import type { PlaylistId, Track, TrackId } from "@shared/types";
 import { getPlaybackManager } from "@/services/playback-manager";
 import { useLibrary } from "./use-library";
 import { usePlaylists } from "./use-playlists";
 
 /**
  * Adapts the PlaybackManager (the single source of playback truth, PRD
- * §10.4) plus the library and playlist stores into React state for the main
- * window. A selectedPlaylistId of null means the Library view (all tracks).
- * Shuffle and repeat are UI state until tasks 4.11–4.13 wire them into the
- * queue logic.
+ * §10.4 — including shuffle, repeat, and volume) plus the library and
+ * playlist stores into React state for the main window. A selectedPlaylistId
+ * of null means the Library view (all tracks).
  */
 export function usePlayer() {
   const library = useLibrary();
@@ -20,8 +19,6 @@ export function usePlayer() {
   const playback = useSyncExternalStore(manager.subscribe, manager.getState);
   const [selectedPlaylistId, setSelectedPlaylistId] =
     useState<PlaylistId | null>(null);
-  const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState<RepeatMode>("off");
 
   const trackMap = useMemo(
     () => new Map(tracks.map((track) => [track.id, track])),
@@ -75,7 +72,8 @@ export function usePlayer() {
   }
 
   function cycleRepeat() {
-    setRepeat((mode) => (mode === "off" ? "all" : mode === "all" ? "one" : "off"));
+    const mode = playback.repeat;
+    manager.setRepeat(mode === "off" ? "all" : mode === "all" ? "one" : "off");
   }
 
   function addPlaylist(name: string) {
@@ -109,15 +107,19 @@ export function usePlayer() {
     position: playback.position,
     duration: playback.duration,
     playbackError: playback.error,
-    shuffle,
-    repeat,
+    volume: playback.volume,
+    muted: playback.muted,
+    shuffle: playback.shuffle,
+    repeat: playback.repeat,
     selectPlaylist: setSelectedPlaylistId,
     playTrack,
     togglePlay,
     next: () => manager.next(),
     previous: () => manager.previous(),
     seek: (position: number) => manager.seek(position),
-    toggleShuffle: () => setShuffle((enabled) => !enabled),
+    setVolume: (volume: number) => manager.setVolume(volume),
+    toggleMute: () => manager.toggleMute(),
+    toggleShuffle: () => manager.toggleShuffle(),
     cycleRepeat,
     addPlaylist,
     renamePlaylist: playlistStore.rename,
