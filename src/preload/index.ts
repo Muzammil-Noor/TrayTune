@@ -70,6 +70,19 @@ const api = {
       trackId: string,
     ): Promise<Playlist | null> =>
       ipcRenderer.invoke("playlist:remove-track", playlistId, trackId),
+    reorder: (
+      playlistId: string,
+      fromIndex: number,
+      toIndex: number,
+    ): Promise<Playlist | null> =>
+      ipcRenderer.invoke("playlist:reorder", playlistId, fromIndex, toIndex),
+    /** Creates a new playlist from both; the originals are kept. */
+    merge: (
+      firstId: string,
+      secondId: string,
+      name: string,
+    ): Promise<Playlist | null> =>
+      ipcRenderer.invoke("playlist:merge", firstId, secondId, name),
     /** Fires in every window with the full playlist list after any change. */
     onChanged: (callback: (playlists: Playlist[]) => void): (() => void) => {
       const listener = (_event: unknown, playlists: Playlist[]) =>

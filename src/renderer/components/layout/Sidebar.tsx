@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { ContextMenu } from "@/components/ui/ContextMenu";
 import { Dialog } from "@/components/ui/Dialog";
 import { Icon } from "@/components/ui/Icon";
+import { Select } from "@/components/ui/Select";
 import { TextInput } from "@/components/ui/TextInput";
 import { glyphs } from "@/lib/glyphs";
 import { cn } from "@/lib/utils";
@@ -15,9 +16,12 @@ interface SidebarProps {
   selectedPlaylistId: PlaylistId | null;
   libraryTrackCount: number;
   onSelect: (playlistId: PlaylistId | null) => void;
+  onPlay: (playlistId: PlaylistId) => void;
   onAdd: (name: string) => void;
   onRename: (playlistId: PlaylistId, name: string) => void;
   onDelete: (playlistId: PlaylistId) => void;
+  /** Merge creates a new named playlist from both; originals stay. */
+  onMerge: (firstId: PlaylistId, secondId: PlaylistId, name: string) => void;
   onOpenSettings: () => void;
 }
 
@@ -26,6 +30,7 @@ type DialogState =
   | { mode: "add" }
   | { mode: "rename"; playlist: Playlist }
   | { mode: "delete"; playlist: Playlist }
+  | { mode: "merge"; playlist: Playlist }
   | null;
 
 export function Sidebar({
@@ -33,17 +38,21 @@ export function Sidebar({
   selectedPlaylistId,
   libraryTrackCount,
   onSelect,
+  onPlay,
   onAdd,
   onRename,
   onDelete,
+  onMerge,
   onOpenSettings,
 }: SidebarProps) {
   const [menu, setMenu] = useState<MenuState>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [nameInput, setNameInput] = useState("");
+  const [mergeTargetId, setMergeTargetId] = useState("");
 
   function openDialog(state: NonNullable<DialogState>) {
     setNameInput(state.mode === "rename" ? state.playlist.name : "");
+    setMergeTargetId("");
     setDialog(state);
   }
 
@@ -53,6 +62,14 @@ export function Sidebar({
     if (!name || !dialog) return;
     if (dialog.mode === "add") onAdd(name);
     if (dialog.mode === "rename") onRename(dialog.playlist.id, name);
+    setDialog(null);
+  }
+
+  function submitMergeDialog(event: FormEvent) {
+    event.preventDefault();
+    const name = nameInput.trim();
+    if (!name || dialog?.mode !== "merge" || !mergeTargetId) return;
+    onMerge(dialog.playlist.id, mergeTargetId, name);
     setDialog(null);
   }
 
@@ -155,12 +172,28 @@ export function Sidebar({
           onClose={() => setMenu(null)}
           items={[
             {
+              label: "Play",
+              glyph: glyphs.play,
+              onSelect: () => onPlay(menu.playlist.id),
+            } as const,
+            {
               label: "Rename",
               glyph: glyphs.rename,
               onSelect: () =>
                 openDialog({ mode: "rename", playlist: menu.playlist }),
-            },
-            { type: "separator" },
+            } as const,
+            // Merging needs a partner playlist.
+            ...(playlists.length > 1
+              ? [
+                  {
+                    label: "Merge with…",
+                    glyph: glyphs.copy,
+                    onSelect: () =>
+                      openDialog({ mode: "merge", playlist: menu.playlist }),
+                  } as const,
+                ]
+              : []),
+            { type: "separator" } as const,
             {
               label: "Delete",
               glyph: glyphs.delete,
@@ -196,6 +229,71 @@ export function Sidebar({
             value={nameInput}
             placeholder="Playlist name"
             aria-label="Playlist name"
+            onChange={(event) => setNameInput(event.currentTarget.value)}
+          />
+        </form>
+      </Dialog>
+
+      <Dialog
+        open={dialog?.mode === "merge"}
+        title="Merge playlists"
+        onClose={() => setDialog(null)}
+        footer={
+          <>
+            <Button
+              variant="accent"
+              disabled={nameInput.trim().length === 0 || mergeTargetId === ""}
+              form="playlist-merge-form"
+              type="submit"
+            >
+              Merge
+            </Button>
+            <Button onClick={() => setDialog(null)}>Cancel</Button>
+          </>
+        }
+      >
+        <form
+          id="playlist-merge-form"
+          className="flex flex-col gap-3"
+          onSubmit={submitMergeDialog}
+        >
+          <p className="text-sm text-secondary">
+            Combines “{dialog?.mode === "merge" ? dialog.playlist.name : ""}”
+            with another playlist into a new playlist. Both originals are kept.
+          </p>
+          <Select
+            aria-label="Playlist to merge with"
+            value={mergeTargetId}
+            onChange={(event) => {
+              const targetId = event.currentTarget.value;
+              setMergeTargetId(targetId);
+              // Suggest a name for the result; still editable.
+              if (dialog?.mode === "merge") {
+                const target = playlists.find(
+                  (playlist) => playlist.id === targetId,
+                );
+                if (target) {
+                  setNameInput(`${dialog.playlist.name} + ${target.name}`);
+                }
+              }
+            }}
+          >
+            <option value="" disabled>
+              Choose a playlist…
+            </option>
+            {dialog?.mode === "merge" &&
+              playlists
+                .filter((playlist) => playlist.id !== dialog.playlist.id)
+                .map((playlist) => (
+                  <option key={playlist.id} value={playlist.id}>
+                    {playlist.name}
+                  </option>
+                ))}
+          </Select>
+          <TextInput
+            value={nameInput}
+            placeholder="Merged playlist name"
+            aria-label="Merged playlist name"
             onChange={(event) => setNameInput(event.currentTarget.value)}
           />
         </form>

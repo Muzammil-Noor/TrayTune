@@ -43,6 +43,18 @@ export interface TrayTuneApi {
     addTrack(playlistId: string, trackId: string): Promise<Playlist | null>;
     /** The track stays in the library — different operation from removal. */
     removeTrack(playlistId: string, trackId: string): Promise<Playlist | null>;
+    /** Moves one track within a playlist. */
+    reorder(
+      playlistId: string,
+      fromIndex: number,
+      toIndex: number,
+    ): Promise<Playlist | null>;
+    /** Creates a new playlist from both; the originals are kept. */
+    merge(
+      firstId: string,
+      secondId: string,
+      name: string,
+    ): Promise<Playlist | null>;
     /** Fires in every window with the full playlist list after any change.
      * Returns unsubscribe. */
     onChanged(callback: (playlists: Playlist[]) => void): () => void;

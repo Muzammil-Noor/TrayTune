@@ -7,7 +7,7 @@ import type {
   TrackId,
 } from "@shared/types";
 import { Button } from "@/components/ui/Button";
-import { ContextMenu } from "@/components/ui/ContextMenu";
+import { ContextMenu, type ContextMenuItem } from "@/components/ui/ContextMenu";
 import { Dialog } from "@/components/ui/Dialog";
 import { Icon } from "@/components/ui/Icon";
 import { formatDuration } from "@/lib/format";
@@ -30,6 +30,8 @@ interface TrackListProps {
    * "Add to playlist" context action and its picker dialog. */
   playlists?: Playlist[];
   onAddToPlaylist?: (playlistId: PlaylistId, trackId: TrackId) => void;
+  /** Playlist view only: move a track within the playlist (task 5.7). */
+  onReorder?: (fromIndex: number, toIndex: number) => void;
 }
 
 type MenuState = { x: number; y: number; track: Track } | null;
@@ -60,6 +62,7 @@ export function TrackList({
   onAddFiles,
   playlists,
   onAddToPlaylist,
+  onReorder,
 }: TrackListProps) {
   const [menu, setMenu] = useState<MenuState>(null);
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<Track | null>(
@@ -226,6 +229,34 @@ export function TrackList({
                     onSelect: () => setAddToPlaylistTrack(menu.track),
                   } as const,
                 ]
+              : []),
+            // Reorder (playlist view only) — edge items are simply omitted.
+            ...(!isLibrary && onReorder
+              ? ((): ContextMenuItem[] => {
+                  const index = tracks.findIndex(
+                    (track) => track.id === menu.track.id,
+                  );
+                  return [
+                    ...(index > 0
+                      ? [
+                          {
+                            label: "Move up",
+                            glyph: glyphs.up,
+                            onSelect: () => onReorder(index, index - 1),
+                          } as const,
+                        ]
+                      : []),
+                    ...(index >= 0 && index < tracks.length - 1
+                      ? [
+                          {
+                            label: "Move down",
+                            glyph: glyphs.down,
+                            onSelect: () => onReorder(index, index + 1),
+                          } as const,
+                        ]
+                      : []),
+                  ];
+                })()
               : []),
             { type: "separator" } as const,
             ...(isLibrary

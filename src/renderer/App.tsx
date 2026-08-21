@@ -147,9 +147,11 @@ export default function App() {
         selectedPlaylistId={player.selectedPlaylistId}
         libraryTrackCount={player.libraryTrackCount}
         onSelect={player.selectPlaylist}
+        onPlay={player.playPlaylist}
         onAdd={player.addPlaylist}
         onRename={player.renamePlaylist}
         onDelete={player.deletePlaylist}
+        onMerge={player.mergePlaylists}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
@@ -171,6 +173,15 @@ export default function App() {
           onAddFiles={player.addFilesToLibrary}
           playlists={player.playlists}
           onAddToPlaylist={player.addTrackToPlaylist}
+          onReorder={(fromIndex, toIndex) => {
+            if (player.selectedPlaylist) {
+              player.reorderPlaylistTrack(
+                player.selectedPlaylist.id,
+                fromIndex,
+                toIndex,
+              );
+            }
+          }}
         />
         <Player
           currentTrack={player.currentTrack}

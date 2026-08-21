@@ -5,8 +5,10 @@ import {
   deletePlaylist,
   getPlaylists,
   MAX_PLAYLIST_NAME_LENGTH,
+  mergePlaylists,
   removeTrackFromPlaylist,
   renamePlaylist,
+  reorderPlaylist,
 } from "../services/playlists";
 
 const MAX_ID_LENGTH = 256;
@@ -76,6 +78,39 @@ export function registerPlaylistsIpc(): void {
     (_event, playlistId: unknown, trackId: unknown) => {
       if (!isValidId(playlistId) || !isValidId(trackId)) return null;
       const playlist = removeTrackFromPlaylist(playlistId, trackId);
+      if (playlist) broadcastPlaylistsChanged();
+      return playlist;
+    },
+  );
+
+  ipcMain.handle(
+    "playlist:reorder",
+    (_event, playlistId: unknown, fromIndex: unknown, toIndex: unknown) => {
+      if (
+        !isValidId(playlistId) ||
+        !Number.isInteger(fromIndex) ||
+        !Number.isInteger(toIndex)
+      ) {
+        return null;
+      }
+      const playlist = reorderPlaylist(
+        playlistId,
+        fromIndex as number,
+        toIndex as number,
+      );
+      if (playlist) broadcastPlaylistsChanged();
+      return playlist;
+    },
+  );
+
+  ipcMain.handle(
+    "playlist:merge",
+    (_event, firstId: unknown, secondId: unknown, name: unknown) => {
+      const valid = sanitizeName(name);
+      if (!isValidId(firstId) || !isValidId(secondId) || valid === null) {
+        return null;
+      }
+      const playlist = mergePlaylists(firstId, secondId, valid);
       if (playlist) broadcastPlaylistsChanged();
       return playlist;
     },

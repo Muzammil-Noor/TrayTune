@@ -55,5 +55,36 @@ export function usePlaylists() {
     [],
   );
 
-  return { playlists, create, rename, remove, addTrack, removeTrack };
+  const reorder = useCallback(
+    (playlistId: PlaylistId, fromIndex: number, toIndex: number) => {
+      void window.traytune?.playlists.reorder(playlistId, fromIndex, toIndex);
+    },
+    [],
+  );
+
+  /** Returns the merged playlist so callers can select it. */
+  const merge = useCallback(
+    async (
+      firstId: PlaylistId,
+      secondId: PlaylistId,
+      name: string,
+    ): Promise<Playlist | null> => {
+      return (
+        (await window.traytune?.playlists.merge(firstId, secondId, name)) ??
+        null
+      );
+    },
+    [],
+  );
+
+  return {
+    playlists,
+    create,
+    rename,
+    remove,
+    addTrack,
+    removeTrack,
+    reorder,
+    merge,
+  };
 }

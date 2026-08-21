@@ -174,6 +174,57 @@ export function removeTrackFromPlaylist(
   );
 }
 
+/** Task 5.7 — moves one track within a playlist. Only the playlist's own
+ * order changes; a playback queue snapshotted earlier is untouched. */
+export function reorderPlaylist(
+  playlistId: PlaylistId,
+  fromIndex: number,
+  toIndex: number,
+): Playlist | null {
+  return updatePlaylist(playlistId, (playlist) => {
+    const count = playlist.trackIds.length;
+    if (
+      fromIndex < 0 ||
+      fromIndex >= count ||
+      toIndex < 0 ||
+      toIndex >= count ||
+      fromIndex === toIndex
+    ) {
+      return playlist;
+    }
+    const trackIds = [...playlist.trackIds];
+    const [moved] = trackIds.splice(fromIndex, 1);
+    trackIds.splice(toIndex, 0, moved);
+    return { ...playlist, trackIds, updatedAt: Date.now() };
+  });
+}
+
+/** Task 5.8 — creates a NEW playlist holding both track lists (first's
+ * order, then second's, deduplicated). The originals are never deleted
+ * (PRD §54). */
+export function mergePlaylists(
+  firstId: PlaylistId,
+  secondId: PlaylistId,
+  name: string,
+): Playlist | null {
+  if (firstId === secondId) return null;
+  const first = playlists.find((playlist) => playlist.id === firstId);
+  const second = playlists.find((playlist) => playlist.id === secondId);
+  const trimmed = name.trim().slice(0, MAX_PLAYLIST_NAME_LENGTH);
+  if (!first || !second || trimmed.length === 0) return null;
+  const now = Date.now();
+  const merged: Playlist = {
+    id: randomUUID(),
+    name: trimmed,
+    trackIds: [...new Set([...first.trackIds, ...second.trackIds])],
+    createdAt: now,
+    updatedAt: now,
+  };
+  playlists = [...playlists, merged];
+  persistPlaylists();
+  return merged;
+}
+
 /** Strips a removed library track from every playlist (PRD §53: removing
  * from the library cleans references). Returns true when anything changed. */
 export function removeTrackReferences(trackId: TrackId): boolean {

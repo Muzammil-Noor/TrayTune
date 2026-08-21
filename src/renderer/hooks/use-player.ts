@@ -71,6 +71,20 @@ export function usePlayer() {
     if (firstPlayable) playTrack(firstPlayable.id);
   }
 
+  /** Task 5.9 — selects a playlist (null = Library) and starts it from the
+   * top; its playable tracks become the queue. */
+  function playPlaylist(playlistId: PlaylistId | null) {
+    setSelectedPlaylistId(playlistId);
+    const source = playlistId
+      ? (playlists
+          .find((playlist) => playlist.id === playlistId)
+          ?.trackIds.map((id) => trackMap.get(id))
+          .filter((track): track is Track => track !== undefined) ?? [])
+      : tracks;
+    const playable = source.filter((track) => !track.unavailable);
+    if (playable.length > 0) manager.playQueue(playable, 0);
+  }
+
   function cycleRepeat() {
     const mode = playback.repeat;
     manager.setRepeat(mode === "off" ? "all" : mode === "all" ? "one" : "off");
@@ -83,10 +97,24 @@ export function usePlayer() {
   }
 
   function deletePlaylist(playlistId: PlaylistId) {
+    // Deleting the playlist being played from is fine: the queue is a
+    // snapshot and its tracks stay in the library (PRD §59) — only the view
+    // needs a fallback.
     playlistStore.remove(playlistId);
     if (playlistId === selectedPlaylistId) {
       setSelectedPlaylistId(null); // fall back to the Library view
     }
+  }
+
+  /** Task 5.8 — merge creates a new playlist; jump to the result. */
+  function mergePlaylists(
+    firstId: PlaylistId,
+    secondId: PlaylistId,
+    name: string,
+  ) {
+    void playlistStore.merge(firstId, secondId, name).then((playlist) => {
+      if (playlist) setSelectedPlaylistId(playlist.id);
+    });
   }
 
   function removeTrackFromLibrary(trackId: TrackId) {
@@ -113,6 +141,7 @@ export function usePlayer() {
     repeat: playback.repeat,
     selectPlaylist: setSelectedPlaylistId,
     playTrack,
+    playPlaylist,
     togglePlay,
     next: () => manager.next(),
     previous: () => manager.previous(),
@@ -124,8 +153,10 @@ export function usePlayer() {
     addPlaylist,
     renamePlaylist: playlistStore.rename,
     deletePlaylist,
+    mergePlaylists,
     addTrackToPlaylist: playlistStore.addTrack,
     removeTrackFromPlaylist: playlistStore.removeTrack,
+    reorderPlaylistTrack: playlistStore.reorder,
     removeTrackFromLibrary,
     addFilesToLibrary: library.addTracks,
   };
