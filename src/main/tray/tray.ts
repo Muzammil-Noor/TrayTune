@@ -79,6 +79,15 @@ export function createTray(): Tray {
 }
 
 export function updateTrayNowPlaying(info: TrayNowPlaying | null): void {
+  // State reports now arrive several times a second (live playback position);
+  // only rebuild the menu when something the tray shows actually changed.
+  if (
+    info?.title === nowPlaying?.title &&
+    info?.artist === nowPlaying?.artist &&
+    info?.isPlaying === nowPlaying?.isPlaying
+  ) {
+    return;
+  }
   nowPlaying = info;
   rebuildMenu();
   console.log(

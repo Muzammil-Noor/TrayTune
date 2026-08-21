@@ -15,6 +15,9 @@ export interface Track {
   filePath: string;
   artworkPath?: string;
   createdAt: number;
+  /** Runtime-only: the file was missing at the last availability check
+   * (PRD §31). Derived from the filesystem, never persisted. */
+  unavailable?: boolean;
 }
 
 export interface Playlist {
@@ -103,6 +106,9 @@ export interface PlayerStateSnapshot {
   currentTrack: Track | null;
   isPlaying: boolean;
   position: number;
+  /** Real duration from the audio engine; null until known (metadata
+   * duration is the display fallback). */
+  duration: number | null;
   shuffle: boolean;
   repeat: RepeatMode;
 }

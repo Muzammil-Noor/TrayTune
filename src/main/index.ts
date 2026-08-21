@@ -1,14 +1,23 @@
 import { app, BrowserWindow } from "electron";
+import {
+  registerAudioProtocolHandler,
+  registerAudioScheme,
+} from "./audio-protocol";
 import { registerFlyoutIpc } from "./ipc/flyout";
 import { registerLibraryIpc } from "./ipc/library";
 import { registerPlayerIpc } from "./ipc/player";
+import { registerPlaylistsIpc } from "./ipc/playlists";
 import { registerSettingsIpc } from "./ipc/settings";
 import { registerSystemIpc } from "./ipc/system";
 import { markQuitting } from "./lifecycle";
 import { loadLibrary } from "./services/library";
+import { loadPlaylists } from "./services/playlists";
 import { getSettings, loadSettings, STARTUP_ARG } from "./services/settings";
 import { createTray, destroyTray } from "./tray/tray";
 import { createMainWindow } from "./windows/main-window";
+
+// Scheme privileges must be declared before the app is ready.
+registerAudioScheme();
 
 // A tray app must never run twice; a second launch focuses the existing window.
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -30,9 +39,12 @@ if (!gotSingleInstanceLock) {
     app.setAppUserModelId("com.traytune.app");
     loadSettings();
     loadLibrary();
+    loadPlaylists(); // after the library — stale track references are dropped
+    registerAudioProtocolHandler();
     registerSystemIpc();
     registerSettingsIpc();
     registerLibraryIpc();
+    registerPlaylistsIpc();
     registerPlayerIpc();
     registerFlyoutIpc();
 

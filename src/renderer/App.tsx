@@ -75,6 +75,7 @@ export default function App() {
     currentTrack,
     isPlaying,
     position,
+    duration,
     shuffle,
     repeat,
   } = player;
@@ -91,6 +92,7 @@ export default function App() {
       currentTrack,
       isPlaying,
       position,
+      duration,
       shuffle,
       repeat,
     });
@@ -102,6 +104,7 @@ export default function App() {
     currentTrack,
     isPlaying,
     position,
+    duration,
     shuffle,
     repeat,
   ]);
@@ -151,11 +154,14 @@ export default function App() {
           }}
           onRemoveFromLibrary={player.removeTrackFromLibrary}
           onAddFiles={player.addFilesToLibrary}
+          playlists={player.playlists}
+          onAddToPlaylist={player.addTrackToPlaylist}
         />
         <Player
           currentTrack={player.currentTrack}
           isPlaying={player.isPlaying}
           position={player.position}
+          duration={player.duration}
           shuffle={player.shuffle}
           repeat={player.repeat}
           canSkip={player.playlistTracks.length > 0}

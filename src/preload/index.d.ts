@@ -3,6 +3,7 @@ import type {
   AppSettings,
   PlayerAction,
   PlayerStateSnapshot,
+  Playlist,
   Track,
   TrackMetadataPatch,
 } from "../shared/types";
@@ -31,6 +32,20 @@ export interface TrayTuneApi {
     /** Fires in every window with the full track list after any change.
      * Returns unsubscribe. */
     onChanged(callback: (tracks: Track[]) => void): () => void;
+  };
+  readonly playlists: {
+    getAll(): Promise<Playlist[]>;
+    /** Returns the created playlist, or null for an unusable (empty) name. */
+    create(name: string): Promise<Playlist | null>;
+    rename(playlistId: string, name: string): Promise<Playlist | null>;
+    remove(playlistId: string): Promise<boolean>;
+    /** Successful no-op when the track is already in the playlist. */
+    addTrack(playlistId: string, trackId: string): Promise<Playlist | null>;
+    /** The track stays in the library — different operation from removal. */
+    removeTrack(playlistId: string, trackId: string): Promise<Playlist | null>;
+    /** Fires in every window with the full playlist list after any change.
+     * Returns unsubscribe. */
+    onChanged(callback: (playlists: Playlist[]) => void): () => void;
   };
   readonly player: {
     /** Main window: actions from the tray menu / flyout. Returns unsubscribe. */

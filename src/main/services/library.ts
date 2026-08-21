@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { app, dialog } from "electron";
+import { existsSync } from "fs";
 import { basename, extname, join } from "path";
 import { parseFile } from "music-metadata";
 import { SUPPORTED_AUDIO_EXTENSIONS } from "../../shared/constants/audio";
@@ -21,6 +22,10 @@ import { readJsonFile, writeJsonFileAtomic } from "./store";
 const LIBRARY_VERSION = 1;
 
 let tracks: Track[] = [];
+/** Ids whose file was missing at the last availability scan. Runtime-only —
+ * availability is derived from the filesystem, never persisted (PRD §28). */
+let missingTrackIds = new Set<string>();
+let lastAvailabilityScan = 0;
 /** Guards against a second picker opening while one is already up. */
 let pickerOpen = false;
 
@@ -84,15 +89,61 @@ export function loadLibrary(): void {
       }
     }
   }
-  console.log(`[main] library loaded: ${tracks.length} track(s)`);
+  scanAvailability();
+  console.log(
+    `[main] library loaded: ${tracks.length} track(s), ${missingTrackIds.size} missing file(s)`,
+  );
+}
+
+/** Checks every track's file on disk. Returns true when availability changed.
+ * A missing file is marked, never removed — the user decides (PRD §31). */
+function scanAvailability(): boolean {
+  lastAvailabilityScan = Date.now();
+  const missing = new Set<string>();
+  for (const track of tracks) {
+    if (!existsSync(track.filePath)) missing.add(track.id);
+  }
+  const changed =
+    missing.size !== missingTrackIds.size ||
+    [...missing].some((id) => !missingTrackIds.has(id));
+  missingTrackIds = missing;
+  if (changed) {
+    console.log(`[main] availability scan: ${missing.size} missing file(s)`);
+  }
+  return changed;
+}
+
+const AVAILABILITY_SCAN_MIN_INTERVAL_MS = 10_000;
+
+/** Re-checks file availability, throttled so focus events can trigger it
+ * freely without continuously scanning the library (PRD §47). Returns true
+ * when something changed. */
+export function refreshAvailability(): boolean {
+  if (Date.now() - lastAvailabilityScan < AVAILABILITY_SCAN_MIN_INTERVAL_MS) {
+    return false;
+  }
+  return scanAvailability();
 }
 
 function persistLibrary(): void {
+  // `tracks` never carries the runtime unavailable flag — safe to persist as is.
   writeJsonFileAtomic(libraryFile(), { version: LIBRARY_VERSION, tracks });
 }
 
 export function getTracks(): Track[] {
-  return [...tracks];
+  return tracks.map((track) =>
+    missingTrackIds.has(track.id) ? { ...track, unavailable: true } : track,
+  );
+}
+
+export function hasTrack(trackId: string): boolean {
+  return tracks.some((track) => track.id === trackId);
+}
+
+/** For the audio protocol: resolves a library track to its file. Returns
+ * null for unknown ids — that is the whole access control. */
+export function getTrackFilePath(trackId: string): string | null {
+  return tracks.find((track) => track.id === trackId)?.filePath ?? null;
 }
 
 /** Exact-path duplicate check; Windows paths are case-insensitive. */
@@ -208,6 +259,7 @@ export function removeTrack(trackId: string): boolean {
   const next = tracks.filter((track) => track.id !== trackId);
   if (next.length === tracks.length) return false;
   tracks = next;
+  missingTrackIds.delete(trackId);
   persistLibrary();
   return true;
 }

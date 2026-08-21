@@ -24,7 +24,7 @@ export function FlyoutPlayer({ state, onAction }: FlyoutPlayerProps) {
       </div>
       <SeekBar
         position={state.position}
-        duration={state.currentTrack?.duration}
+        duration={state.duration ?? state.currentTrack?.duration}
         disabled={state.currentTrack === null}
         onSeek={(position) => onAction({ type: "seek", position })}
       />

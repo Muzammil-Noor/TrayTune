@@ -4,6 +4,7 @@ import type {
   AppSettings,
   PlayerAction,
   PlayerStateSnapshot,
+  Playlist,
   Track,
   TrackMetadataPatch,
 } from "../shared/types";
@@ -52,6 +53,29 @@ const api = {
       const listener = (_event: unknown, tracks: Track[]) => callback(tracks);
       ipcRenderer.on("library:changed", listener);
       return () => ipcRenderer.removeListener("library:changed", listener);
+    },
+  },
+  playlists: {
+    getAll: (): Promise<Playlist[]> => ipcRenderer.invoke("playlist:get-all"),
+    create: (name: string): Promise<Playlist | null> =>
+      ipcRenderer.invoke("playlist:create", name),
+    rename: (playlistId: string, name: string): Promise<Playlist | null> =>
+      ipcRenderer.invoke("playlist:rename", playlistId, name),
+    remove: (playlistId: string): Promise<boolean> =>
+      ipcRenderer.invoke("playlist:delete", playlistId),
+    addTrack: (playlistId: string, trackId: string): Promise<Playlist | null> =>
+      ipcRenderer.invoke("playlist:add-track", playlistId, trackId),
+    removeTrack: (
+      playlistId: string,
+      trackId: string,
+    ): Promise<Playlist | null> =>
+      ipcRenderer.invoke("playlist:remove-track", playlistId, trackId),
+    /** Fires in every window with the full playlist list after any change. */
+    onChanged: (callback: (playlists: Playlist[]) => void): (() => void) => {
+      const listener = (_event: unknown, playlists: Playlist[]) =>
+        callback(playlists);
+      ipcRenderer.on("playlists:changed", listener);
+      return () => ipcRenderer.removeListener("playlists:changed", listener);
     },
   },
   player: {

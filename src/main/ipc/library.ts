@@ -7,9 +7,12 @@ import {
   addTracks,
   addTracksFromPicker,
   getTracks,
+  refreshAvailability,
   removeTrack,
   updateTrack,
 } from "../services/library";
+import { removeTrackReferences } from "../services/playlists";
+import { broadcastPlaylistsChanged } from "./playlists";
 
 const MAX_ID_LENGTH = 256;
 const MAX_TEXT_LENGTH = 512;
@@ -22,6 +25,12 @@ function broadcastLibraryChanged(): void {
   for (const window of BrowserWindow.getAllWindows()) {
     window.webContents.send("library:changed", snapshot);
   }
+}
+
+/** Re-checks file availability (throttled in the service) and pushes the
+ * result to every window when something changed. Hooked to window focus. */
+export function refreshLibraryAvailability(): void {
+  if (refreshAvailability()) broadcastLibraryChanged();
 }
 
 function isValidTrackId(value: unknown): value is string {
@@ -99,7 +108,12 @@ export function registerLibraryIpc(): void {
   ipcMain.handle("library:remove-track", (_event, trackId: unknown) => {
     if (!isValidTrackId(trackId)) return false;
     const removed = removeTrack(trackId);
-    if (removed) broadcastLibraryChanged();
+    if (removed) {
+      // Removing from the library cleans playlist references (PRD §53).
+      const playlistsChanged = removeTrackReferences(trackId);
+      broadcastLibraryChanged();
+      if (playlistsChanged) broadcastPlaylistsChanged();
+    }
     return removed;
   });
 

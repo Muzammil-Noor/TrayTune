@@ -8,6 +8,8 @@ interface PlayerProps {
   currentTrack: Track | null;
   isPlaying: boolean;
   position: number;
+  /** Real duration from the audio engine; null until known. */
+  duration: number | null;
   shuffle: boolean;
   repeat: RepeatMode;
   canSkip: boolean;
@@ -26,6 +28,7 @@ export function Player({
   currentTrack,
   isPlaying,
   position,
+  duration,
   shuffle,
   repeat,
   canSkip,
@@ -50,7 +53,7 @@ export function Player({
         />
         <SeekBar
           position={position}
-          duration={currentTrack?.duration}
+          duration={duration ?? currentTrack?.duration}
           disabled={currentTrack === null}
           onSeek={onSeek}
         />

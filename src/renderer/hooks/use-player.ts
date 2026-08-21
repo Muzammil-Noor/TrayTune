@@ -1,29 +1,25 @@
-import { useMemo, useState } from "react";
-import type {
-  Playlist,
-  PlaylistId,
-  RepeatMode,
-  Track,
-  TrackId,
-} from "@shared/types";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import type { PlaylistId, RepeatMode, Track, TrackId } from "@shared/types";
+import { getPlaybackManager } from "@/services/playback-manager";
 import { useLibrary } from "./use-library";
+import { usePlaylists } from "./use-playlists";
 
 /**
- * Player state over the real library (Phase 3). Tracks come from the main
- * process's library store; a selectedPlaylistId of null means the Library
- * view (all tracks). Playback itself is still simulated — Phase 4 puts the
- * central PlaybackManager behind these same actions. Playlists remain
- * renderer state until their store lands in Phase 5.
+ * Adapts the PlaybackManager (the single source of playback truth, PRD
+ * §10.4) plus the library and playlist stores into React state for the main
+ * window. A selectedPlaylistId of null means the Library view (all tracks).
+ * Shuffle and repeat are UI state until tasks 4.11–4.13 wire them into the
+ * queue logic.
  */
 export function usePlayer() {
   const library = useLibrary();
+  const playlistStore = usePlaylists();
   const { tracks } = library;
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const { playlists } = playlistStore;
+  const manager = getPlaybackManager();
+  const playback = useSyncExternalStore(manager.subscribe, manager.getState);
   const [selectedPlaylistId, setSelectedPlaylistId] =
     useState<PlaylistId | null>(null);
-  const [currentTrackId, setCurrentTrackId] = useState<TrackId | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [position, setPosition] = useState(0);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
 
@@ -32,6 +28,14 @@ export function usePlayer() {
     [tracks],
   );
 
+  // Library changes reach the engine here: removing the playing track stops
+  // audio for real; removed tracks leave the queue.
+  useEffect(() => {
+    manager.syncWithLibrary(new Set(trackMap.keys()));
+  }, [manager, trackMap]);
+
+  // A selection pointing at a deleted playlist resolves to null, which reads
+  // as the Library view — the natural fallback.
   const selectedPlaylist =
     playlists.find((playlist) => playlist.id === selectedPlaylistId) ?? null;
 
@@ -46,38 +50,28 @@ export function usePlayer() {
     [selectedPlaylist, trackMap, tracks],
   );
 
-  // The current track can disappear underneath us (removed from the library
-  // in another window). Deriving instead of storing makes that render as
-  // "stopped" immediately — no effect, no ghost playback.
-  const currentTrack = currentTrackId
-    ? (trackMap.get(currentTrackId) ?? null)
+  // Resolve display data through the library so metadata edits show live;
+  // the manager's copy is the fallback during the removal round-trip.
+  const currentTrack = playback.track
+    ? (trackMap.get(playback.track.id) ?? playback.track)
     : null;
-  const effectiveIsPlaying = isPlaying && currentTrack !== null;
 
+  /** Starts a track in the context the user clicked: the visible list
+   * becomes the queue. Missing files are excluded up front, so next,
+   * previous, and auto-advance never land on them (PRD §31). */
   function playTrack(trackId: TrackId) {
-    setCurrentTrackId(trackId);
-    setIsPlaying(true);
-    setPosition(0);
+    const playable = playlistTracks.filter((track) => !track.unavailable);
+    const index = playable.findIndex((track) => track.id === trackId);
+    if (index !== -1) manager.playQueue(playable, index);
   }
 
   function togglePlay() {
-    if (currentTrack) {
-      setIsPlaying((playing) => !playing);
-    } else if (playlistTracks.length > 0) {
-      playTrack(playlistTracks[0].id);
+    if (playback.track) {
+      manager.toggle();
+      return;
     }
-  }
-
-  function step(delta: 1 | -1) {
-    if (playlistTracks.length === 0) return;
-    const index = playlistTracks.findIndex(
-      (track) => track.id === currentTrackId,
-    );
-    const nextIndex =
-      index === -1
-        ? 0
-        : (index + delta + playlistTracks.length) % playlistTracks.length;
-    playTrack(playlistTracks[nextIndex].id);
+    const firstPlayable = playlistTracks.find((track) => !track.unavailable);
+    if (firstPlayable) playTrack(firstPlayable.id);
   }
 
   function cycleRepeat() {
@@ -85,65 +79,22 @@ export function usePlayer() {
   }
 
   function addPlaylist(name: string) {
-    const now = Date.now();
-    const playlist: Playlist = {
-      id: `playlist-${crypto.randomUUID()}`,
-      name,
-      trackIds: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    setPlaylists((prev) => [...prev, playlist]);
-    setSelectedPlaylistId(playlist.id);
-  }
-
-  function renamePlaylist(playlistId: PlaylistId, name: string) {
-    setPlaylists((prev) =>
-      prev.map((playlist) =>
-        playlist.id === playlistId
-          ? { ...playlist, name, updatedAt: Date.now() }
-          : playlist,
-      ),
-    );
+    void playlistStore.create(name).then((playlist) => {
+      if (playlist) setSelectedPlaylistId(playlist.id); // select it (PRD §52)
+    });
   }
 
   function deletePlaylist(playlistId: PlaylistId) {
-    setPlaylists((prev) => prev.filter((playlist) => playlist.id !== playlistId));
+    playlistStore.remove(playlistId);
     if (playlistId === selectedPlaylistId) {
       setSelectedPlaylistId(null); // fall back to the Library view
     }
   }
 
-  function removeTrackFromPlaylist(playlistId: PlaylistId, trackId: TrackId) {
-    setPlaylists((prev) =>
-      prev.map((playlist) =>
-        playlist.id === playlistId
-          ? {
-              ...playlist,
-              trackIds: playlist.trackIds.filter((id) => id !== trackId),
-              updatedAt: Date.now(),
-            }
-          : playlist,
-      ),
-    );
-  }
-
   function removeTrackFromLibrary(trackId: TrackId) {
-    // The main process owns the library; the change comes back through the
-    // library:changed broadcast. Playlist references are still renderer
-    // state, so clean them here (their store arrives in Phase 5).
+    // The main process owns both stores and cleans playlist references
+    // itself; the syncWithLibrary effect stops audio if needed.
     library.removeTrack(trackId);
-    setPlaylists((prev) =>
-      prev.map((playlist) =>
-        playlist.trackIds.includes(trackId)
-          ? {
-              ...playlist,
-              trackIds: playlist.trackIds.filter((id) => id !== trackId),
-              updatedAt: Date.now(),
-            }
-          : playlist,
-      ),
-    );
   }
 
   return {
@@ -153,23 +104,26 @@ export function usePlayer() {
     playlistTracks,
     libraryTrackCount: tracks.length,
     currentTrack,
-    currentTrackId,
-    isPlaying: effectiveIsPlaying,
-    position,
+    currentTrackId: currentTrack?.id ?? null,
+    isPlaying: playback.isPlaying,
+    position: playback.position,
+    duration: playback.duration,
+    playbackError: playback.error,
     shuffle,
     repeat,
     selectPlaylist: setSelectedPlaylistId,
     playTrack,
     togglePlay,
-    next: () => step(1),
-    previous: () => step(-1),
-    seek: setPosition,
+    next: () => manager.next(),
+    previous: () => manager.previous(),
+    seek: (position: number) => manager.seek(position),
     toggleShuffle: () => setShuffle((enabled) => !enabled),
     cycleRepeat,
     addPlaylist,
-    renamePlaylist,
+    renamePlaylist: playlistStore.rename,
     deletePlaylist,
-    removeTrackFromPlaylist,
+    addTrackToPlaylist: playlistStore.addTrack,
+    removeTrackFromPlaylist: playlistStore.removeTrack,
     removeTrackFromLibrary,
     addFilesToLibrary: library.addTracks,
   };

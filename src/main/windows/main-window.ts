@@ -1,5 +1,6 @@
 import { BrowserWindow, nativeTheme, shell } from "electron";
 import { join } from "path";
+import { refreshLibraryAvailability } from "../ipc/library";
 import { isQuitting } from "../lifecycle";
 import { getSettings } from "../services/settings";
 import { destroyFlyout } from "./flyout-window";
@@ -34,6 +35,10 @@ export function createMainWindow(
   window.on("ready-to-show", () => {
     if (options.showOnReady !== false) window.show();
   });
+
+  // Coming back to the app is the natural moment to notice files that were
+  // deleted or moved meanwhile (throttled in the library service).
+  window.on("focus", () => refreshLibraryAvailability());
 
   // Close-to-tray (task 2.5): hide instead of closing unless the user turned
   // it off or the app is actually quitting.

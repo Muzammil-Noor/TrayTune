@@ -11,6 +11,9 @@ interface SliderProps {
   "aria-label": string;
   "aria-valuetext"?: string;
   onChange: (value: number) => void;
+  /** Fires when an interaction finishes (pointer released / key released).
+   * Lets scrubbing UIs hold their local value during the drag. */
+  onCommit?: (value: number) => void;
 }
 
 /** Win11-style slider built on input[type=range] so keyboard interaction and
@@ -23,6 +26,7 @@ export function Slider({
   disabled,
   className,
   onChange,
+  onCommit,
   ...aria
 }: SliderProps) {
   const range = max - min;
@@ -41,6 +45,8 @@ export function Slider({
       className={cn("slider", className)}
       style={{ "--slider-fill": `${fill}%` } as CSSProperties}
       onChange={(event) => onChange(Number(event.currentTarget.value))}
+      onPointerUp={(event) => onCommit?.(Number(event.currentTarget.value))}
+      onKeyUp={(event) => onCommit?.(Number(event.currentTarget.value))}
     />
   );
 }

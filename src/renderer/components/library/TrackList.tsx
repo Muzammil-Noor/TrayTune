@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import type { AddTracksResult, Track, TrackId } from "@shared/types";
+import type {
+  AddTracksResult,
+  Playlist,
+  PlaylistId,
+  Track,
+  TrackId,
+} from "@shared/types";
 import { Button } from "@/components/ui/Button";
 import { ContextMenu } from "@/components/ui/ContextMenu";
+import { Dialog } from "@/components/ui/Dialog";
 import { Icon } from "@/components/ui/Icon";
 import { formatDuration } from "@/lib/format";
 import { glyphs } from "@/lib/glyphs";
@@ -19,6 +26,10 @@ interface TrackListProps {
   onRemoveFromLibrary: (trackId: TrackId) => void;
   /** Present only where importing makes sense (the main window). */
   onAddFiles?: () => Promise<AddTracksResult | null>;
+  /** Playlist membership management (main window only): enables the
+   * "Add to playlist" context action and its picker dialog. */
+  playlists?: Playlist[];
+  onAddToPlaylist?: (playlistId: PlaylistId, trackId: TrackId) => void;
 }
 
 type MenuState = { x: number; y: number; track: Track } | null;
@@ -47,8 +58,13 @@ export function TrackList({
   onRemoveFromPlaylist,
   onRemoveFromLibrary,
   onAddFiles,
+  playlists,
+  onAddToPlaylist,
 }: TrackListProps) {
   const [menu, setMenu] = useState<MenuState>(null);
+  const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<Track | null>(
+    null,
+  );
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const statusTimer = useRef<number | undefined>(undefined);
@@ -117,11 +133,15 @@ export function TrackList({
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
           {tracks.map((track, index) => {
             const isCurrent = track.id === currentTrackId;
+            const unavailable = track.unavailable === true;
             return (
               <button
                 key={track.id}
                 type="button"
-                onClick={() => onPlay(track.id)}
+                aria-disabled={unavailable}
+                onClick={() => {
+                  if (!unavailable) onPlay(track.id);
+                }}
                 onContextMenu={(event) => {
                   event.preventDefault();
                   setMenu({ x: event.clientX, y: event.clientY, track });
@@ -131,10 +151,13 @@ export function TrackList({
                   isCurrent
                     ? "bg-accent/8"
                     : "hover:bg-subtle active:bg-subtle-strong",
+                  unavailable && "cursor-default",
                 )}
               >
                 <span className="flex justify-center">
-                  {isCurrent ? (
+                  {unavailable ? (
+                    <Icon glyph={glyphs.warning} className="text-sm text-danger" />
+                  ) : isCurrent ? (
                     <Icon glyph={glyphs.volume} className="text-sm text-accent" />
                   ) : (
                     <span className="text-sm tabular-nums text-secondary">
@@ -146,16 +169,32 @@ export function TrackList({
                   <span
                     className={cn(
                       "block truncate text-sm",
-                      isCurrent ? "font-medium text-accent" : "text-primary",
+                      unavailable
+                        ? "text-tertiary"
+                        : isCurrent
+                          ? "font-medium text-accent"
+                          : "text-primary",
                     )}
                   >
                     {track.title}
                   </span>
-                  <span className="block truncate text-xs text-secondary">
-                    {track.artist ?? "Unknown artist"}
+                  <span
+                    className={cn(
+                      "block truncate text-xs",
+                      unavailable ? "text-danger" : "text-secondary",
+                    )}
+                  >
+                    {unavailable
+                      ? "File unavailable"
+                      : (track.artist ?? "Unknown artist")}
                   </span>
                 </span>
-                <span className="text-sm tabular-nums text-secondary">
+                <span
+                  className={cn(
+                    "text-sm tabular-nums",
+                    unavailable ? "text-tertiary" : "text-secondary",
+                  )}
+                >
                   {formatDuration(track.duration)}
                 </span>
               </button>
@@ -170,12 +209,25 @@ export function TrackList({
           y={menu.y}
           onClose={() => setMenu(null)}
           items={[
-            {
-              label: "Play",
-              glyph: glyphs.play,
-              onSelect: () => onPlay(menu.track.id),
-            },
-            { type: "separator" },
+            ...(menu.track.unavailable
+              ? []
+              : [
+                  {
+                    label: "Play",
+                    glyph: glyphs.play,
+                    onSelect: () => onPlay(menu.track.id),
+                  } as const,
+                ]),
+            ...(playlists && onAddToPlaylist
+              ? [
+                  {
+                    label: "Add to playlist",
+                    glyph: glyphs.add,
+                    onSelect: () => setAddToPlaylistTrack(menu.track),
+                  } as const,
+                ]
+              : []),
+            { type: "separator" } as const,
             ...(isLibrary
               ? []
               : [
@@ -191,8 +243,70 @@ export function TrackList({
               danger: true,
               onSelect: () => onRemoveFromLibrary(menu.track.id),
             },
-          ]}
+            // An unavailable track in the flyout has no items above the
+            // separator — drop the dangling rule.
+          ].filter(
+            (item, index) => !(index === 0 && item.type === "separator"),
+          )}
         />
+      )}
+
+      {playlists && onAddToPlaylist && (
+        <Dialog
+          open={addToPlaylistTrack !== null}
+          title="Add to playlist"
+          onClose={() => setAddToPlaylistTrack(null)}
+          footer={
+            <Button onClick={() => setAddToPlaylistTrack(null)}>Cancel</Button>
+          }
+        >
+          <p className="truncate pb-3 text-sm text-secondary">
+            {addToPlaylistTrack?.title}
+          </p>
+          {playlists.length === 0 ? (
+            <p className="text-sm text-tertiary">
+              No playlists yet — create one from the sidebar first.
+            </p>
+          ) : (
+            <div className="max-h-64 overflow-y-auto">
+              {playlists.map((playlist) => {
+                const alreadyIn =
+                  addToPlaylistTrack !== null &&
+                  playlist.trackIds.includes(addToPlaylistTrack.id);
+                return (
+                  <button
+                    key={playlist.id}
+                    type="button"
+                    disabled={alreadyIn}
+                    onClick={() => {
+                      if (addToPlaylistTrack) {
+                        onAddToPlaylist(playlist.id, addToPlaylistTrack.id);
+                      }
+                      setAddToPlaylistTrack(null);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
+                      alreadyIn
+                        ? "text-tertiary"
+                        : "hover:bg-subtle active:bg-subtle-strong",
+                    )}
+                  >
+                    <Icon
+                      glyph={alreadyIn ? glyphs.checkMark : glyphs.bulletedList}
+                      className="text-sm text-secondary"
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {playlist.name}
+                    </span>
+                    <span className="text-xs tabular-nums text-secondary">
+                      {alreadyIn ? "Already added" : playlist.trackIds.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Dialog>
       )}
     </section>
   );
