@@ -1,0 +1,44 @@
+# Windows packaging for TrayTune (see .github/workflows/release.yml).
+# Run locally with: npm run package:win
+
+# Must match app.setAppUserModelId() in src/main/index.ts — Windows ties the
+# tray icon, shortcuts and the startup entry to this identity.
+appId: com.traytune.app
+productName: TrayTune
+copyright: Copyright © 2026 Charles Chaotic
+
+directories:
+  output: dist
+  buildResources: build
+
+# electron-vite bundles every runtime dependency into out/, so node_modules is
+# deliberately left out of the package. The tray icon is loaded at runtime from
+# resources/ (relative to out/main), so it has to ship too.
+files:
+  - out/**
+  - resources/**
+  - package.json
+
+win:
+  # A PNG of at least 256x256; electron-builder converts it to an .ico.
+  icon: resources/tray-icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  # Per-user install: no admin prompt, and it matches the per-user (HKCU)
+  # registry key that the "Run on startup" setting writes to.
+  perMachine: false
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: TrayTune
+  uninstallDisplayName: TrayTune
+  artifactName: ${productName}-${version}-setup.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}

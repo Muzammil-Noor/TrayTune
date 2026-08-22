@@ -1,0 +1,85 @@
+name: Release
+
+# Every push to main produces a Windows build (downloadable from the run's
+# artifacts). When the version in package.json is one that has not been
+# released yet, that build is also published as a GitHub Release — so cutting
+# a release is just "bump the version, push".
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  # Needed by `gh release create`.
+  contents: write
+
+# One build at a time. Not cancel-in-progress: a run cancelled while it is
+# publishing would leave a release with only some of its assets attached.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Typechecks, bundles, then packages the NSIS installer and the portable
+      # exe into dist/. Builds are unsigned (no certificate configured), so
+      # Windows SmartScreen will warn on first run.
+      - name: Build and package
+        run: npm run package:win
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: traytune-windows
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Check whether this version needs releasing
+        id: meta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "v$version" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::v$version is already released — publishing skipped. Bump the version in package.json to cut a new release."
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release
+        if: steps.meta.outputs.release == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          gh release create "v$VERSION" \
+            --title "TrayTune v$VERSION" \
+            --generate-notes \
+            --target "$GITHUB_SHA" \
+            dist/*.exe
