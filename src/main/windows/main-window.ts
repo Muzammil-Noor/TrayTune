@@ -5,6 +5,7 @@ import { isQuitting } from "../lifecycle";
 import { getSettings } from "../services/settings";
 import { destroyFlyout } from "./flyout-window";
 import { setMainWindow } from "./registry";
+import appIcon from "../../../resources/icon.ico?asset";
 
 interface MainWindowOptions {
   /** false = create hidden (sign-in launch with startupMode "tray"). */
@@ -22,6 +23,9 @@ export function createMainWindow(
     minHeight: 520,
     show: false,
     autoHideMenuBar: true,
+    // Taskbar/window icon. In packaged builds Windows uses the exe's icon
+    // (electron-builder win.icon); this is what dev runs and Alt+Tab use.
+    icon: appIcon,
     // Matches the renderer theme tokens so there is no flash on startup.
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#202020" : "#f3f3f3",
     webPreferences: {
