@@ -1,7 +1,7 @@
 {
   "name": "traytune",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-first Windows 11-style music player that lives in the system tray",
   "author": "Muzammil-Noor",
   "main": "out/main/index.js",
