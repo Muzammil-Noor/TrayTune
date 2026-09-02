@@ -97,6 +97,20 @@ function positionFlyout(flyout: BrowserWindow): void {
   });
 }
 
+/** Showing a transparent window on Windows presents one fully-opaque frame
+ * before the shell's own show animation begins, which reads as a blink:
+ * appear, vanish, fade back in. Raising the window at zero opacity and
+ * restoring it once it is up drops that stray frame. */
+function showFlyout(flyout: BrowserWindow): void {
+  flyout.setOpacity(0);
+  positionFlyout(flyout);
+  flyout.show();
+  flyout.focus();
+  setTimeout(() => {
+    if (!flyout.isDestroyed()) flyout.setOpacity(1);
+  }, 0);
+}
+
 /** Tray left-click behavior: open above the tray, or close if it was open. */
 export function toggleFlyout(): void {
   const existing = getFlyoutWindow();
@@ -111,9 +125,7 @@ export function toggleFlyout(): void {
   }
 
   const flyout = existing ?? createFlyoutWindow();
-  positionFlyout(flyout);
-  flyout.show();
-  flyout.focus();
+  showFlyout(flyout);
   sendCachedStateToFlyout();
 }
 
