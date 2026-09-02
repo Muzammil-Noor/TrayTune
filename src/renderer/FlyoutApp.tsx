@@ -5,6 +5,7 @@ import type {
   PlaylistId,
   TrackId,
 } from "@shared/types";
+import { FLYOUT_LIST_HEIGHT, FLYOUT_PADDING } from "@shared/constants/flyout";
 import { FlyoutPlayer } from "./components/flyout/FlyoutPlayer";
 import { PlaylistDrawer } from "./components/flyout/PlaylistDrawer";
 import { TrackList } from "./components/library/TrackList";
@@ -20,16 +21,18 @@ type DrawerPhase = "closed" | "open" | "closing";
 
 /** Mini player shown above the tray (tray left-click). Renders the player
  * state owned by the main window and sends actions back — it holds no player
- * state of its own (PRD §10.4). Compact by default: the song list expands on
- * demand and the window resizes to match. */
+ * state of its own (PRD §10.4).
+ *
+ * The window is a fixed-size transparent shell (see constants/flyout.ts); the
+ * card below is the visible flyout, anchored to the window's bottom edge. The
+ * song list expands and collapses by animating its own height, which keeps the
+ * player perfectly still — the window is never resized mid-animation. */
 export default function FlyoutApp() {
   useTheme();
   useAccent();
   const { settings } = useAppSettings();
   const [state, setState] = useState<PlayerStateSnapshot | null>(null);
   const [listExpanded, setListExpanded] = useState(false);
-  /** Keeps the list mounted while the window's 300ms shrink animation plays. */
-  const [listClosing, setListClosing] = useState(false);
   const [drawer, setDrawer] = useState<DrawerPhase>("closed");
 
   useEffect(() => {
@@ -67,15 +70,7 @@ export default function FlyoutApp() {
 
   function setListTo(next: boolean) {
     setListExpanded(next);
-    if (next) {
-      setListClosing(false);
-    } else {
-      setDrawer("closed"); // the drawer only exists in expanded mode
-      // Unmount only after the window shrink finishes (RESIZE_MS in main).
-      setListClosing(true);
-      window.setTimeout(() => setListClosing(false), 320);
-    }
-    window.traytune?.flyout.setExpanded(next);
+    if (!next) setDrawer("closed"); // the drawer only exists in expanded mode
   }
 
   const send = (action: PlayerAction) =>
@@ -99,82 +94,107 @@ export default function FlyoutApp() {
   const drawerOpen = drawer === "open";
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden border border-stroke bg-window">
-      <header className="flex shrink-0 items-center gap-1 px-2 py-1.5">
-        {/* Floats above the drawer overlay so it can close the drawer too. */}
-        <Button
-          variant="subtle"
-          size="icon"
-          className="relative z-50"
-          title={drawerOpen ? "Close playlists" : "Playlists"}
-          aria-label={drawerOpen ? "Close playlists" : "Playlists"}
-          aria-expanded={drawerOpen}
-          disabled={!listExpanded}
-          onClick={() => setDrawer((phase) => (phase === "open" ? "closing" : "open"))}
-        >
-          <Icon glyph={glyphs.navButton} />
-        </Button>
-        <h1 className="pl-1 text-sm font-semibold">TrayTune</h1>
-        <span className="flex-1" />
-        <Button
-          variant="subtle"
-          size="icon"
-          title={listExpanded ? "Hide song list" : "Show song list"}
-          aria-label={listExpanded ? "Hide song list" : "Show song list"}
-          aria-expanded={listExpanded}
-          onClick={() => setListTo(!listExpanded)}
-        >
-          <Icon glyph={listExpanded ? glyphs.chevronDown : glyphs.chevronUp} />
-        </Button>
-        <Button
-          variant="subtle"
-          size="icon"
-          title="Open TrayTune"
-          aria-label="Open TrayTune"
-          onClick={() => window.traytune?.flyout.openMainWindow()}
-        >
-          <Icon glyph={glyphs.openInNewWindow} />
-        </Button>
-      </header>
+    <div
+      className="flex h-full flex-col justify-end"
+      style={{ padding: FLYOUT_PADDING }}
+    >
+      {/* See-through area above the card. Clicking it dismisses the flyout,
+          matching what clicking outside a Windows flyout does. */}
+      <div
+        aria-hidden="true"
+        className="min-h-0 flex-1"
+        onMouseDown={() => window.traytune?.flyout.hide()}
+      />
 
-      {state ? (
-        <>
-          {(listExpanded || listClosing) && (
-            <div className="animate-in fade-in flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-l border-t border-stroke bg-surface duration-300">
-              <TrackList
-                title={selectedPlaylist?.name ?? "Library"}
-                isLibrary={state.selectedPlaylistId === null}
-                tracks={state.tracks}
-                currentTrackId={state.currentTrack?.id ?? null}
-                onPlay={handlePlay}
-                onRemoveFromPlaylist={(trackId) =>
-                  send({ type: "remove-from-playlist", trackId })
-                }
-                onRemoveFromLibrary={(trackId) =>
-                  send({ type: "remove-from-library", trackId })
-                }
-              />
+      <div
+        className="relative flex shrink-0 flex-col overflow-hidden rounded-lg border border-stroke bg-window shadow-2xl"
+      >
+        <header className="flex shrink-0 items-center gap-1 px-2 py-1.5">
+          {/* Floats above the drawer overlay so it can close the drawer too. */}
+          <Button
+            variant="subtle"
+            size="icon"
+            className="relative z-50"
+            title={drawerOpen ? "Close playlists" : "Playlists"}
+            aria-label={drawerOpen ? "Close playlists" : "Playlists"}
+            aria-expanded={drawerOpen}
+            disabled={!listExpanded}
+            onClick={() =>
+              setDrawer((phase) => (phase === "open" ? "closing" : "open"))
+            }
+          >
+            <Icon glyph={glyphs.navButton} />
+          </Button>
+          <h1 className="pl-1 text-sm font-semibold">TrayTune</h1>
+          <span className="flex-1" />
+          <Button
+            variant="subtle"
+            size="icon"
+            title={listExpanded ? "Hide song list" : "Show song list"}
+            aria-label={listExpanded ? "Hide song list" : "Show song list"}
+            aria-expanded={listExpanded}
+            onClick={() => setListTo(!listExpanded)}
+          >
+            <Icon glyph={listExpanded ? glyphs.chevronDown : glyphs.chevronUp} />
+          </Button>
+          <Button
+            variant="subtle"
+            size="icon"
+            title="Open TrayTune"
+            aria-label="Open TrayTune"
+            onClick={() => window.traytune?.flyout.openMainWindow()}
+          >
+            <Icon glyph={glyphs.openInNewWindow} />
+          </Button>
+        </header>
+
+        {state ? (
+          <>
+            {/* The one animating element. Height is the only thing that moves,
+                and it moves above the player, so the player never shifts. */}
+            <div
+              // Stays mounted while collapsed so its height can transition;
+              // inert keeps the clipped rows out of tab order.
+              inert={!listExpanded}
+              className="shrink-0 overflow-hidden rounded-tl-lg bg-surface transition-[height] duration-300 ease-out"
+              style={{ height: listExpanded ? FLYOUT_LIST_HEIGHT : 0 }}
+            >
+              <div style={{ height: FLYOUT_LIST_HEIGHT }}>
+                <TrackList
+                  title={selectedPlaylist?.name ?? "Library"}
+                  isLibrary={state.selectedPlaylistId === null}
+                  tracks={state.tracks}
+                  currentTrackId={state.currentTrack?.id ?? null}
+                  onPlay={handlePlay}
+                  onRemoveFromPlaylist={(trackId) =>
+                    send({ type: "remove-from-playlist", trackId })
+                  }
+                  onRemoveFromLibrary={(trackId) =>
+                    send({ type: "remove-from-library", trackId })
+                  }
+                />
+              </div>
             </div>
-          )}
-          <FlyoutPlayer state={state} onAction={send} />
-        </>
-      ) : (
-        <div className="flex flex-1 items-center justify-center text-sm text-tertiary">
-          Connecting to TrayTune…
-        </div>
-      )}
+            <FlyoutPlayer state={state} onAction={send} />
+          </>
+        ) : (
+          <div className="flex h-24 items-center justify-center text-sm text-tertiary">
+            Connecting to TrayTune…
+          </div>
+        )}
 
-      {drawer !== "closed" && state && listExpanded && (
-        <PlaylistDrawer
-          playlists={state.playlists}
-          selectedPlaylistId={state.selectedPlaylistId}
-          libraryTrackCount={state.libraryTrackCount}
-          closing={drawer === "closing"}
-          onSelect={handleSelectPlaylist}
-          onClose={() => setDrawer("closing")}
-          onExited={() => setDrawer("closed")}
-        />
-      )}
+        {drawer !== "closed" && state && listExpanded && (
+          <PlaylistDrawer
+            playlists={state.playlists}
+            selectedPlaylistId={state.selectedPlaylistId}
+            libraryTrackCount={state.libraryTrackCount}
+            closing={drawer === "closing"}
+            onSelect={handleSelectPlaylist}
+            onClose={() => setDrawer("closing")}
+            onExited={() => setDrawer("closed")}
+          />
+        )}
+      </div>
     </div>
   );
 }

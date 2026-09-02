@@ -111,6 +111,11 @@ body {
   cursor: default;
 }
 
+/* The flyout's window is transparent; the card inside paints itself. */
+body.flyout-window {
+  background-color: transparent;
+}
+
 @layer components {
   .fluent-icon {
     font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";

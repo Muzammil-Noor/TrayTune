@@ -75,8 +75,6 @@ export interface TrayTuneApi {
     hide(): void;
     toggle(): void;
     openMainWindow(): void;
-    /** Report song-list expansion so the window resizes to match. */
-    setExpanded(value: boolean): void;
   };
 }
 

@@ -124,9 +124,6 @@ const api = {
     hide: (): void => {
       ipcRenderer.send("flyout:hide");
     },
-    setExpanded: (value: boolean): void => {
-      ipcRenderer.send("flyout:set-expanded", value);
-    },
     toggle: (): void => {
       ipcRenderer.send("flyout:toggle");
     },
