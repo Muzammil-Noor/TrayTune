@@ -1,11 +1,21 @@
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type {
   PlayerAction,
   PlayerStateSnapshot,
   PlaylistId,
   TrackId,
 } from "@shared/types";
-import { FLYOUT_LIST_HEIGHT, FLYOUT_PADDING } from "@shared/constants/flyout";
+import {
+  FLYOUT_ANIMATION_MS,
+  FLYOUT_LIST_HEIGHT,
+  FLYOUT_PADDING,
+} from "@shared/constants/flyout";
 import { FlyoutPlayer } from "./components/flyout/FlyoutPlayer";
 import { PlaylistDrawer } from "./components/flyout/PlaylistDrawer";
 import { TrackList } from "./components/library/TrackList";
@@ -34,6 +44,33 @@ export default function FlyoutApp() {
   const [state, setState] = useState<PlayerStateSnapshot | null>(null);
   const [listExpanded, setListExpanded] = useState(false);
   const [drawer, setDrawer] = useState<DrawerPhase>("closed");
+  const cardRef = useRef<HTMLDivElement>(null);
+  const shrinkTimer = useRef<number | undefined>(undefined);
+
+  /** Tells the main process how tall the card currently is, so the window can
+   * hug it. Anything the window covers beyond the card is invisible but still
+   * eats clicks, so this is kept tight whenever the card is at rest. */
+  const syncWindowToCard = useCallback(() => {
+    const height = cardRef.current?.getBoundingClientRect().height;
+    if (height) window.traytune?.flyout.setPanelHeight(Math.ceil(height));
+  }, []);
+
+  // Size the window to the collapsed card as soon as it has laid out.
+  useLayoutEffect(() => {
+    syncWindowToCard();
+    return () => window.clearTimeout(shrinkTimer.current);
+  }, [syncWindowToCard]);
+
+  // The card is shorter while it shows "Connecting…"; re-measure once the
+  // real player has rendered. Deliberately a one-shot rather than a
+  // ResizeObserver: observing every height change would resize the window on
+  // every frame of the collapse animation, which is what caused the jitter.
+  const measuredForState = useRef(false);
+  useLayoutEffect(() => {
+    if (!state || measuredForState.current) return;
+    measuredForState.current = true;
+    if (!listExpanded) syncWindowToCard();
+  }, [state, listExpanded, syncWindowToCard]);
 
   useEffect(() => {
     // Pull the cached snapshot first — the push sent on window load can race
@@ -69,8 +106,25 @@ export default function FlyoutApp() {
   }, []);
 
   function setListTo(next: boolean) {
-    setListExpanded(next);
-    if (!next) setDrawer("closed"); // the drawer only exists in expanded mode
+    window.clearTimeout(shrinkTimer.current);
+    if (next) {
+      // Grow the window first so the panel has somewhere to expand into, then
+      // animate. Resizing mid-animation is what used to make the player jump.
+      const height = cardRef.current?.getBoundingClientRect().height ?? 0;
+      window.traytune?.flyout.setPanelHeight(
+        Math.ceil(height) + FLYOUT_LIST_HEIGHT,
+      );
+      setListExpanded(true);
+      return;
+    }
+    setListExpanded(false);
+    setDrawer("closed"); // the drawer only exists in expanded mode
+    // Shrink only once the closing animation has finished, so the window is
+    // never larger than the card while it sits there.
+    shrinkTimer.current = window.setTimeout(
+      syncWindowToCard,
+      FLYOUT_ANIMATION_MS + 20,
+    );
   }
 
   const send = (action: PlayerAction) =>
@@ -107,6 +161,7 @@ export default function FlyoutApp() {
       />
 
       <div
+        ref={cardRef}
         className="relative flex shrink-0 flex-col overflow-hidden rounded-lg border border-stroke bg-window shadow-2xl"
       >
         <header className="flex shrink-0 items-center gap-1 px-2 py-1.5">

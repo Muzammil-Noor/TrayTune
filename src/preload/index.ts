@@ -127,6 +127,10 @@ const api = {
     toggle: (): void => {
       ipcRenderer.send("flyout:toggle");
     },
+    /** Report how tall the visible card is so the window can match it. */
+    setPanelHeight: (height: number): void => {
+      ipcRenderer.send("flyout:set-panel-height", height);
+    },
     openMainWindow: (): void => {
       ipcRenderer.send("flyout:open-main-window");
     },

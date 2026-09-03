@@ -1,7 +1,10 @@
 import { BrowserWindow, screen } from "electron";
 import { join } from "path";
 import {
-  FLYOUT_WINDOW_HEIGHT,
+  FLYOUT_INITIAL_PANEL_HEIGHT,
+  FLYOUT_MAX_PANEL_HEIGHT,
+  FLYOUT_MIN_PANEL_HEIGHT,
+  FLYOUT_PADDING,
   FLYOUT_WINDOW_WIDTH,
 } from "../../shared/constants/flyout";
 import { isQuitting } from "../lifecycle";
@@ -20,6 +23,17 @@ import { getFlyoutWindow, setFlyoutWindow } from "./registry";
  * such failure mode.
  */
 
+/** Height of the visible card, as measured and reported by the renderer. The
+ * window is kept just big enough for it (plus padding for the shadow) so the
+ * transparent region can't swallow clicks meant for whatever is behind it.
+ * The renderer grows this before opening the list and shrinks it again once
+ * the closing animation has finished. */
+let panelHeight = FLYOUT_INITIAL_PANEL_HEIGHT;
+
+function windowHeight(): number {
+  return panelHeight + FLYOUT_PADDING * 2;
+}
+
 /** Tray-icon clicks arrive right after the flyout's own blur has hidden it;
  * within this window we treat the click as "toggle closed", not "reopen". */
 let lastBlurAt = 0;
@@ -28,7 +42,7 @@ const BLUR_TOGGLE_GRACE_MS = 300;
 function createFlyoutWindow(): BrowserWindow {
   const flyout = new BrowserWindow({
     width: FLYOUT_WINDOW_WIDTH,
-    height: FLYOUT_WINDOW_HEIGHT,
+    height: windowHeight(),
     show: false,
     frame: false,
     resizable: false,
@@ -86,15 +100,33 @@ function createFlyoutWindow(): BrowserWindow {
 }
 
 /** Anchors the flyout to the bottom-right of the work area. The window's
- * transparent padding provides the visual gap from the screen edges. */
+ * transparent padding provides the visual gap from the screen edges. The
+ * bottom edge is the fixed one, so the card never moves when the window is
+ * resized around it. */
 function positionFlyout(flyout: BrowserWindow): void {
   const { workArea } = screen.getPrimaryDisplay();
+  const height = windowHeight();
   flyout.setBounds({
     x: workArea.x + workArea.width - FLYOUT_WINDOW_WIDTH,
-    y: workArea.y + workArea.height - FLYOUT_WINDOW_HEIGHT,
+    y: workArea.y + workArea.height - height,
     width: FLYOUT_WINDOW_WIDTH,
-    height: FLYOUT_WINDOW_HEIGHT,
+    height,
   });
+}
+
+/** The renderer reports how tall the card is (or is about to become). It
+ * grows the window *before* animating open and shrinks it *after* animating
+ * shut, so the window is only larger than the card while the animation runs. */
+export function setFlyoutPanelHeight(height: number): void {
+  if (!Number.isFinite(height)) return;
+  const clamped = Math.min(
+    Math.max(Math.round(height), FLYOUT_MIN_PANEL_HEIGHT),
+    FLYOUT_MAX_PANEL_HEIGHT,
+  );
+  if (clamped === panelHeight) return;
+  panelHeight = clamped;
+  const flyout = getFlyoutWindow();
+  if (flyout) positionFlyout(flyout);
 }
 
 /** Showing a transparent window on Windows presents one fully-opaque frame

@@ -75,6 +75,8 @@ export interface TrayTuneApi {
     hide(): void;
     toggle(): void;
     openMainWindow(): void;
+    /** Report how tall the visible card is so the window can match it. */
+    setPanelHeight(height: number): void;
   };
 }
 
