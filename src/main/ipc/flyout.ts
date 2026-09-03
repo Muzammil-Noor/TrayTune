@@ -1,8 +1,9 @@
 import { ipcMain } from "electron";
 import { showMainWindow } from "../tray/tray";
 import {
+  handleFlyoutReady,
   hideFlyout,
-  setFlyoutPanelHeight,
+  setFlyoutCardHeight,
   toggleFlyout,
 } from "../windows/flyout-window";
 
@@ -11,9 +12,15 @@ export function registerFlyoutIpc(): void {
     hideFlyout();
   });
 
-  // The renderer sizes the window to its visible card (see flyout-window.ts).
-  ipcMain.on("flyout:set-panel-height", (_event, height: unknown) => {
-    if (typeof height === "number") setFlyoutPanelHeight(height);
+  // The renderer reports how tall the card is, so the main process knows
+  // which part of the (larger, transparent) window is actually interactive.
+  ipcMain.on("flyout:set-card-height", (_event, height: unknown) => {
+    if (typeof height === "number") setFlyoutCardHeight(height);
+  });
+
+  // The renderer confirms it has painted, so the window can be revealed.
+  ipcMain.on("flyout:ready", () => {
+    handleFlyoutReady();
   });
 
   // Programmatic equivalent of the tray click (also used by tests; a future

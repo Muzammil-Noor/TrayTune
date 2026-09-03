@@ -75,8 +75,13 @@ export interface TrayTuneApi {
     hide(): void;
     toggle(): void;
     openMainWindow(): void;
-    /** Report how tall the visible card is so the window can match it. */
-    setPanelHeight(height: number): void;
+    /** Report the card's height so main knows which part of the window is
+     * interactive; the rest is transparent and passes clicks through. */
+    setCardHeight(height: number): void;
+    /** Fires when the window has just been shown. Returns unsubscribe. */
+    onShown(callback: () => void): () => void;
+    /** Tell main the renderer has painted, so the window can be revealed. */
+    notifyReady(): void;
   };
 }
 

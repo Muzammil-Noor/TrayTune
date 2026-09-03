@@ -127,9 +127,19 @@ const api = {
     toggle: (): void => {
       ipcRenderer.send("flyout:toggle");
     },
-    /** Report how tall the visible card is so the window can match it. */
-    setPanelHeight: (height: number): void => {
-      ipcRenderer.send("flyout:set-panel-height", height);
+    /** Report the card's height so main knows which part of the window is
+     * interactive; the rest is transparent and passes clicks through. */
+    setCardHeight: (height: number): void => {
+      ipcRenderer.send("flyout:set-card-height", height);
+    },
+    /** Main asks the renderer to confirm it has painted before revealing. */
+    onShown: (callback: () => void): (() => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("flyout:shown", listener);
+      return () => ipcRenderer.removeListener("flyout:shown", listener);
+    },
+    notifyReady: (): void => {
+      ipcRenderer.send("flyout:ready");
     },
     openMainWindow: (): void => {
       ipcRenderer.send("flyout:open-main-window");

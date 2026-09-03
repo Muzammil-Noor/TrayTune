@@ -1,21 +1,11 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   PlayerAction,
   PlayerStateSnapshot,
   PlaylistId,
   TrackId,
 } from "@shared/types";
-import {
-  FLYOUT_ANIMATION_MS,
-  FLYOUT_LIST_HEIGHT,
-  FLYOUT_PADDING,
-} from "@shared/constants/flyout";
+import { FLYOUT_LIST_HEIGHT, FLYOUT_PADDING } from "@shared/constants/flyout";
 import { FlyoutPlayer } from "./components/flyout/FlyoutPlayer";
 import { PlaylistDrawer } from "./components/flyout/PlaylistDrawer";
 import { TrackList } from "./components/library/TrackList";
@@ -45,32 +35,36 @@ export default function FlyoutApp() {
   const [listExpanded, setListExpanded] = useState(false);
   const [drawer, setDrawer] = useState<DrawerPhase>("closed");
   const cardRef = useRef<HTMLDivElement>(null);
-  const shrinkTimer = useRef<number | undefined>(undefined);
 
-  /** Tells the main process how tall the card currently is, so the window can
-   * hug it. Anything the window covers beyond the card is invisible but still
-   * eats clicks, so this is kept tight whenever the card is at rest. */
-  const syncWindowToCard = useCallback(() => {
-    const height = cardRef.current?.getBoundingClientRect().height;
-    if (height) window.traytune?.flyout.setPanelHeight(Math.ceil(height));
+  // The window is bigger than the card and see-through around it. Main needs
+  // the card's height to know which part is interactive; everything else
+  // passes clicks through to whatever shows through the gap. Observing every
+  // height change is safe here — unlike window bounds, this only moves a
+  // hit-test rectangle, so it can follow the animation frame by frame.
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    const report = () =>
+      window.traytune?.flyout.setCardHeight(
+        Math.ceil(card.getBoundingClientRect().height),
+      );
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(card);
+    return () => observer.disconnect();
   }, []);
 
-  // Size the window to the collapsed card as soon as it has laid out.
-  useLayoutEffect(() => {
-    syncWindowToCard();
-    return () => window.clearTimeout(shrinkTimer.current);
-  }, [syncWindowToCard]);
-
-  // The card is shorter while it shows "Connecting…"; re-measure once the
-  // real player has rendered. Deliberately a one-shot rather than a
-  // ResizeObserver: observing every height change would resize the window on
-  // every frame of the collapse animation, which is what caused the jitter.
-  const measuredForState = useRef(false);
-  useLayoutEffect(() => {
-    if (!state || measuredForState.current) return;
-    measuredForState.current = true;
-    if (!listExpanded) syncWindowToCard();
-  }, [state, listExpanded, syncWindowToCard]);
+  // The window is raised invisible and revealed once we have painted; without
+  // that handshake a stray opaque frame blinks before the shell's own show
+  // animation. Two frames: the first schedules the paint, the second runs
+  // after it has been presented.
+  useEffect(() => {
+    return window.traytune?.flyout.onShown(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => window.traytune?.flyout.notifyReady());
+      });
+    });
+  }, []);
 
   useEffect(() => {
     // Pull the cached snapshot first — the push sent on window load can race
@@ -106,25 +100,8 @@ export default function FlyoutApp() {
   }, []);
 
   function setListTo(next: boolean) {
-    window.clearTimeout(shrinkTimer.current);
-    if (next) {
-      // Grow the window first so the panel has somewhere to expand into, then
-      // animate. Resizing mid-animation is what used to make the player jump.
-      const height = cardRef.current?.getBoundingClientRect().height ?? 0;
-      window.traytune?.flyout.setPanelHeight(
-        Math.ceil(height) + FLYOUT_LIST_HEIGHT,
-      );
-      setListExpanded(true);
-      return;
-    }
-    setListExpanded(false);
-    setDrawer("closed"); // the drawer only exists in expanded mode
-    // Shrink only once the closing animation has finished, so the window is
-    // never larger than the card while it sits there.
-    shrinkTimer.current = window.setTimeout(
-      syncWindowToCard,
-      FLYOUT_ANIMATION_MS + 20,
-    );
+    setListExpanded(next);
+    if (!next) setDrawer("closed"); // the drawer only exists in expanded mode
   }
 
   const send = (action: PlayerAction) =>

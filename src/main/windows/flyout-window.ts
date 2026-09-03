@@ -1,10 +1,11 @@
 import { BrowserWindow, screen } from "electron";
 import { join } from "path";
 import {
-  FLYOUT_INITIAL_PANEL_HEIGHT,
-  FLYOUT_MAX_PANEL_HEIGHT,
-  FLYOUT_MIN_PANEL_HEIGHT,
+  FLYOUT_CHROME_HEIGHT,
+  FLYOUT_HIT_TEST_MS,
   FLYOUT_PADDING,
+  FLYOUT_REVEAL_TIMEOUT_MS,
+  FLYOUT_WINDOW_HEIGHT,
   FLYOUT_WINDOW_WIDTH,
 } from "../../shared/constants/flyout";
 import { isQuitting } from "../lifecycle";
@@ -23,16 +24,15 @@ import { getFlyoutWindow, setFlyoutWindow } from "./registry";
  * such failure mode.
  */
 
-/** Height of the visible card, as measured and reported by the renderer. The
- * window is kept just big enough for it (plus padding for the shadow) so the
- * transparent region can't swallow clicks meant for whatever is behind it.
- * The renderer grows this before opening the list and shrinks it again once
- * the closing animation has finished. */
-let panelHeight = FLYOUT_INITIAL_PANEL_HEIGHT;
+/** Set while a show is waiting for the renderer to confirm it has painted. */
+let pendingReveal: (() => void) | null = null;
+let revealTimer: NodeJS.Timeout | null = null;
 
-function windowHeight(): number {
-  return panelHeight + FLYOUT_PADDING * 2;
-}
+/** Height of the visible card, reported by the renderer. Only used to work
+ * out where the card is for hit-testing — the window itself never resizes. */
+let cardHeight = FLYOUT_CHROME_HEIGHT;
+let hitTestTimer: NodeJS.Timeout | null = null;
+let interactive = true;
 
 /** Tray-icon clicks arrive right after the flyout's own blur has hidden it;
  * within this window we treat the click as "toggle closed", not "reopen". */
@@ -42,7 +42,7 @@ const BLUR_TOGGLE_GRACE_MS = 300;
 function createFlyoutWindow(): BrowserWindow {
   const flyout = new BrowserWindow({
     width: FLYOUT_WINDOW_WIDTH,
-    height: windowHeight(),
+    height: FLYOUT_WINDOW_HEIGHT,
     show: false,
     frame: false,
     resizable: false,
@@ -67,6 +67,7 @@ function createFlyoutWindow(): BrowserWindow {
 
   flyout.on("blur", () => {
     lastBlurAt = Date.now();
+    stopHitTesting();
     flyout.hide();
   });
 
@@ -100,47 +101,101 @@ function createFlyoutWindow(): BrowserWindow {
 }
 
 /** Anchors the flyout to the bottom-right of the work area. The window's
- * transparent padding provides the visual gap from the screen edges. The
- * bottom edge is the fixed one, so the card never moves when the window is
- * resized around it. */
+ * transparent padding provides the visual gap from the screen edges. */
 function positionFlyout(flyout: BrowserWindow): void {
   const { workArea } = screen.getPrimaryDisplay();
-  const height = windowHeight();
   flyout.setBounds({
     x: workArea.x + workArea.width - FLYOUT_WINDOW_WIDTH,
-    y: workArea.y + workArea.height - height,
+    y: workArea.y + workArea.height - FLYOUT_WINDOW_HEIGHT,
     width: FLYOUT_WINDOW_WIDTH,
-    height,
+    height: FLYOUT_WINDOW_HEIGHT,
   });
 }
 
-/** The renderer reports how tall the card is (or is about to become). It
- * grows the window *before* animating open and shrinks it *after* animating
- * shut, so the window is only larger than the card while the animation runs. */
-export function setFlyoutPanelHeight(height: number): void {
+export function setFlyoutCardHeight(height: number): void {
   if (!Number.isFinite(height)) return;
-  const clamped = Math.min(
-    Math.max(Math.round(height), FLYOUT_MIN_PANEL_HEIGHT),
-    FLYOUT_MAX_PANEL_HEIGHT,
-  );
-  if (clamped === panelHeight) return;
-  panelHeight = clamped;
-  const flyout = getFlyoutWindow();
-  if (flyout) positionFlyout(flyout);
+  cardHeight = Math.min(Math.max(Math.round(height), 0), FLYOUT_WINDOW_HEIGHT);
+}
+
+/** The window covers far more of the screen than the card does, and the rest
+ * is see-through. Clicks there should reach whatever is showing through
+ * rather than being swallowed, so the window is made click-through whenever
+ * the pointer is outside the card.
+ *
+ * The pointer is polled from here rather than tracked in the renderer:
+ * `setIgnoreMouseEvents(true, { forward: true })` stops delivering mouse
+ * moves once the window is click-through, so the renderer could never tell
+ * when the pointer came back — which left the card itself unclickable. */
+function updateInteractivity(flyout: BrowserWindow): void {
+  const bounds = flyout.getBounds();
+  const pointer = screen.getCursorScreenPoint();
+  // The card plus its padding, so interactivity switches on a moment before
+  // the pointer is actually over a control.
+  const top = bounds.y + bounds.height - cardHeight - FLYOUT_PADDING * 2;
+  const overCard =
+    pointer.x >= bounds.x &&
+    pointer.x < bounds.x + bounds.width &&
+    pointer.y >= top &&
+    pointer.y < bounds.y + bounds.height;
+  if (overCard === interactive) return;
+  interactive = overCard;
+  flyout.setIgnoreMouseEvents(!overCard);
+}
+
+function startHitTesting(flyout: BrowserWindow): void {
+  stopHitTesting();
+  updateInteractivity(flyout);
+  hitTestTimer = setInterval(() => {
+    if (flyout.isDestroyed() || !flyout.isVisible()) {
+      stopHitTesting();
+      return;
+    }
+    updateInteractivity(flyout);
+  }, FLYOUT_HIT_TEST_MS);
+}
+
+function stopHitTesting(): void {
+  if (hitTestTimer) clearInterval(hitTestTimer);
+  hitTestTimer = null;
+}
+
+/** Called when the renderer reports it has painted a frame for this show. */
+export function handleFlyoutReady(): void {
+  pendingReveal?.();
 }
 
 /** Showing a transparent window on Windows presents one fully-opaque frame
  * before the shell's own show animation begins, which reads as a blink:
- * appear, vanish, fade back in. Raising the window at zero opacity and
- * restoring it once it is up drops that stray frame. */
+ * appear, vanish, fade back in. The window is therefore raised at zero
+ * opacity and only revealed once the renderer confirms it has painted a frame
+ * at this position — a fixed delay raced the paint and let the blink through
+ * intermittently. The timer is a safety net if that confirmation never comes. */
 function showFlyout(flyout: BrowserWindow): void {
+  cancelPendingReveal();
   flyout.setOpacity(0);
   positionFlyout(flyout);
+  interactive = true;
+  flyout.setIgnoreMouseEvents(false);
   flyout.show();
   flyout.focus();
-  setTimeout(() => {
+  startHitTesting(flyout);
+
+  const reveal = () => {
+    cancelPendingReveal();
     if (!flyout.isDestroyed()) flyout.setOpacity(1);
-  }, 0);
+  };
+  pendingReveal = reveal;
+  revealTimer = setTimeout(() => {
+    console.warn("[main] flyout revealed without the renderer's paint signal");
+    reveal();
+  }, FLYOUT_REVEAL_TIMEOUT_MS);
+  flyout.webContents.send("flyout:shown");
+}
+
+function cancelPendingReveal(): void {
+  if (revealTimer) clearTimeout(revealTimer);
+  revealTimer = null;
+  pendingReveal = null;
 }
 
 /** Tray left-click behavior: open above the tray, or close if it was open. */
@@ -162,10 +217,14 @@ export function toggleFlyout(): void {
 }
 
 export function hideFlyout(): void {
+  cancelPendingReveal();
+  stopHitTesting();
   getFlyoutWindow()?.hide();
 }
 
 export function destroyFlyout(): void {
+  cancelPendingReveal();
+  stopHitTesting();
   const flyout = getFlyoutWindow();
   if (flyout) {
     flyout.destroy(); // bypasses the close handler's hide-instead-of-close
