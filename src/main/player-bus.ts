@@ -14,7 +14,12 @@ export function dispatchPlayerAction(action: PlayerAction): void {
 
 export function publishPlayerState(snapshot: PlayerStateSnapshot): void {
   lastSnapshot = snapshot;
-  getFlyoutWindow()?.webContents.send("player:state", snapshot);
+  // Only a visible flyout needs the stream. Position ticks arrive about four
+  // times a second and carry the whole visible track list, so pushing them
+  // into a hidden window costs two IPC hops and a React render each, for
+  // something nobody can see. It catches up from the cache when it is shown.
+  const flyout = getFlyoutWindow();
+  if (flyout?.isVisible()) flyout.webContents.send("player:state", snapshot);
 }
 
 /** Sends the latest known state to the flyout (used right after it loads). */

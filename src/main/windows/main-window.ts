@@ -33,6 +33,13 @@ export function createMainWindow(
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // This renderer owns the audio engine (see playback-manager), and in
+      // tray mode the window is hidden most of the time. Chromium backgrounds
+      // a hidden window's renderer, which delayed transport commands reaching
+      // the player by whole seconds — measured at 5.5s and 8.1s for a resume
+      // that takes 2ms with the window open. The player has to keep running
+      // at full speed whether or not anyone is looking at this window.
+      backgroundThrottling: false,
     },
   });
 

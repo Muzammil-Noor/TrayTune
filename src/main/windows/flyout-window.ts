@@ -176,6 +176,9 @@ function showFlyout(flyout: BrowserWindow): void {
   positionFlyout(flyout);
   interactive = true;
   flyout.setIgnoreMouseEvents(false);
+  // State pushes are skipped while hidden (see player-bus), so hand over the
+  // current snapshot before the window paints rather than after.
+  sendCachedStateToFlyout();
   flyout.show();
   flyout.focus();
   startHitTesting(flyout);

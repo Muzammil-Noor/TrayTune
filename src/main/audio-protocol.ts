@@ -1,7 +1,6 @@
 import { createReadStream } from "fs";
 import { stat } from "fs/promises";
 import { extname } from "path";
-import { Readable } from "stream";
 import { protocol } from "electron";
 import { getTrackFilePath } from "./services/library";
 
@@ -19,11 +18,24 @@ import { getTrackFilePath } from "./services/library";
 
 export const AUDIO_SCHEME = "traytune-audio";
 
-/** Must run before app.whenReady — schemes cannot be privileged later.
- * `stream: true` lets the media element treat responses as seekable media. */
+/**
+ * Must run before app.whenReady — schemes cannot be privileged later.
+ *
+ * `stream: true` lets the media element treat responses as seekable media.
+ * `standard: true` is what makes range requests actually work: without it
+ * Chromium treats the scheme as opaque and refuses partial content on it,
+ * cancelling every request it makes at a non-zero offset before reading a
+ * byte. The element then fails with PIPELINE_ERROR_READ, which the playback
+ * manager reads as an unplayable track — so seeking past the buffered range
+ * used to skip to the next song instead of seeking. Both flags are required;
+ * a correct 206 from this handler is not enough on its own.
+ *
+ * Deliberately no `supportFetchAPI`: the renderer should be able to play
+ * these URLs, not read raw file bytes out of them.
+ */
 export function registerAudioScheme(): void {
   protocol.registerSchemesAsPrivileged([
-    { scheme: AUDIO_SCHEME, privileges: { stream: true } },
+    { scheme: AUDIO_SCHEME, privileges: { standard: true, stream: true } },
   ]);
 }
 
@@ -49,14 +61,37 @@ function contentType(filePath: string): string {
   }
 }
 
+/**
+ * Body for one response. Built by hand rather than with Readable.toWeb so
+ * that cancellation stays silent — every seek cancels the response in flight,
+ * and the web-stream adapter destroys the fs stream with the cancel reason,
+ * turning routine cancellation into an AbortError on a stream nothing is
+ * listening to.
+ */
 function fileStream(
   filePath: string,
-  range?: { start: number; end: number },
+  range: { start: number; end: number },
 ): ReadableStream<Uint8Array> {
-  // Node's web-stream type and the DOM lib type disagree — same object.
-  return Readable.toWeb(
-    createReadStream(filePath, range),
-  ) as ReadableStream<Uint8Array>;
+  const file = createReadStream(filePath, range);
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      file.on("data", (chunk) => {
+        controller.enqueue(chunk as Uint8Array);
+        // Respect the consumer's backpressure: media buffers ahead, then
+        // stops reading until playback catches up.
+        if ((controller.desiredSize ?? 1) <= 0) file.pause();
+      });
+      file.on("end", () => controller.close());
+      file.on("error", (error) => controller.error(error));
+    },
+    pull() {
+      file.resume();
+    },
+    cancel() {
+      file.on("error", () => {}); // teardown races are not failures
+      file.destroy();
+    },
+  });
 }
 
 export function registerAudioProtocolHandler(): void {
@@ -101,6 +136,9 @@ export function registerAudioProtocolHandler(): void {
           headers: { "Content-Range": `bytes */${size}` },
         });
       }
+      // The response has to run to the end of the requested range: Chromium
+      // takes an early finish as end-of-file and shortens the track to what
+      // it received.
       headers["Content-Range"] = `bytes ${start}-${end}/${size}`;
       headers["Content-Length"] = String(end - start + 1);
       return new Response(fileStream(filePath, { start, end }), {
@@ -110,6 +148,9 @@ export function registerAudioProtocolHandler(): void {
     }
 
     headers["Content-Length"] = String(size);
-    return new Response(fileStream(filePath), { status: 200, headers });
+    return new Response(fileStream(filePath, { start: 0, end: size - 1 }), {
+      status: 200,
+      headers,
+    });
   });
 }
